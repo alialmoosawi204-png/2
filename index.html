@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Block Crush — 8x8 & Levels</title>
+<title>Block Crush — Boosters Edition</title>
 <style>
   :root{
     --wood-dark:#5c3a21;
@@ -12,6 +12,7 @@
     --panel:#3e2a1a;
     --accent:#f4c542;
     --accent-dark:#c99a2e;
+    --danger:#e74c3c;
   }
   *{box-sizing:border-box;}
   html,body{
@@ -79,17 +80,19 @@
     background:#2f2015;
     touch-action:none;
   }
-  .controls{ margin-top:16px; display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+  .controls-group { width: 100%; max-width: 640px; margin-top: 10px; }
+  .controls-title { font-size: 14px; text-align: center; margin-bottom: 5px; color: #f4c542; font-weight: bold;}
+  .controls{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
   
   button.woodBtn{
     font-family:inherit;
-    font-size:15px;
+    font-size:14px;
     font-weight:bold;
     color:#fff3e0;
     background:linear-gradient(180deg,var(--wood-light),var(--wood-mid));
     border:2px solid var(--panel);
     border-radius:10px;
-    padding:10px 18px;
+    padding:8px 14px;
     cursor:pointer;
     box-shadow:0 4px 0 var(--panel), 0 6px 10px rgba(0,0,0,.4);
     transition:all .1s ease;
@@ -104,6 +107,15 @@
   }
   button.gold:active{ box-shadow:0 1px 0 #7a5a1a, 0 2px 6px rgba(0,0,0,.4); }
   
+  button.booster-active {
+      background: linear-gradient(180deg, #ff7675, var(--danger));
+      color: white;
+      border-color: #c0392b;
+      box-shadow: 0 4px 0 #c0392b, 0 0 15px rgba(231, 76, 60, 0.8);
+      animation: pulse 1s infinite alternate;
+  }
+  @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.05); } }
+
   .disabled {
       opacity: 0.5;
       cursor: not-allowed !important;
@@ -135,46 +147,66 @@
   .modalBox p{ margin:0 0 20px; font-size:16px; line-height: 1.5; }
   .menu-btns { display: flex; flex-direction: column; gap: 15px; }
 
-  /* تنسيق شبكة المتجر */
+  /* تنسيق الإعدادات */
+  .setting-group { margin-bottom: 15px; text-align: right; }
+  .setting-group label { display: block; margin-bottom: 5px; color: #ffd700; font-weight: bold; }
+  .setting-group select { width: 100%; padding: 8px; border-radius: 8px; background: #2a1c11; color: #fff; border: 2px solid var(--accent-dark); font-family: inherit; font-size: 16px;}
+
   #storeGrid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    justify-content: center;
-    max-height: 45vh;
-    overflow-y: auto;
-    padding: 10px;
-    background: rgba(0,0,0,0.2);
-    border-radius: 12px;
-    margin-bottom: 20px;
+    display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;
+    max-height: 45vh; overflow-y: auto; padding: 10px;
+    background: rgba(0,0,0,0.2); border-radius: 12px; margin-bottom: 20px;
   }
-  
-  /* تخصيص التمرير داخل المتجر */
   #storeGrid::-webkit-scrollbar { width: 8px; }
   #storeGrid::-webkit-scrollbar-track { background: #3a2413; border-radius: 4px; }
   #storeGrid::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 4px; }
-
 </style>
 </head>
 <body>
 
-<!-- القائمة الرئيسية -->
 <div id="mainMenu" class="overlay">
   <div class="modalBox">
     <h2>🧩 Block Crush</h2>
     <p>العملة: كل 100 🪙 = 1 💎</p>
     <div class="menu-btns">
-      <button class="woodBtn gold" id="btnModeLevels">🌟 وضع المستويات (المستوى <span id="savedLevelSpan">1</span>)</button>
+      <button class="woodBtn gold" id="btnModeLevels">🌟 وضع المستويات (<span id="savedLevelSpan">1</span>)</button>
       <button class="woodBtn" id="btnModeClassic">♾️ الوضع الكلاسيكي</button>
+      <button class="woodBtn" id="btnSettings">⚙️ الإعدادات (الأشكال والأصوات)</button>
     </div>
   </div>
 </div>
 
-<!-- نافذة متجر البلوكات -->
+<div id="settingsModal" class="overlay hidden">
+  <div class="modalBox">
+    <h2>⚙️ الإعدادات</h2>
+    <div class="setting-group">
+      <label>🎨 شكل البلوكات:</label>
+      <select id="themeSelect">
+        <option value="wood">🪵 خشبي (كلاسيكي)</option>
+        <option value="candy">🍬 حلوى (لامع)</option>
+        <option value="icecream">🍦 آيس كريم (باستيل)</option>
+        <option value="snow">❄️ كرات ثلجية</option>
+        <option value="animals">🐾 قلوب وحيوانات</option>
+      </select>
+    </div>
+    <div class="setting-group">
+      <label>🎵 الأصوات:</label>
+      <select id="soundSelect">
+        <option value="classic">🎹 كلاسيكي (ديجيتال)</option>
+        <option value="bubble">🫧 فقاعات المائية</option>
+        <option value="marimba">🪵 خشبي / ماريمبا</option>
+      </select>
+    </div>
+    <div class="menu-btns">
+      <button class="woodBtn" id="closeSettingsBtn">✔ حفظ وإغلاق</button>
+    </div>
+  </div>
+</div>
+
 <div id="storeModal" class="overlay hidden">
   <div class="modalBox" style="width: 480px;">
     <h2>🛒 متجر البلوكات</h2>
-    <p>اختر البلوكة المطلوبة (التكلفة: 150 🪙)<br><small style="color:#aaa;">سيتم استبدال أول قطعة فارغة لديك بالقطعة الجديدة.</small></p>
+    <p>التكلفة: 150 🪙<br><small style="color:#aaa;">سيتم استبدال قطعة فارغة بالجديدة.</small></p>
     <div id="storeGrid"></div>
     <div class="menu-btns">
       <button class="woodBtn" id="closeStoreBtn">❌ إلغاء وإغلاق</button>
@@ -182,7 +214,6 @@
   </div>
 </div>
 
-<!-- نافذة نهاية اللعبة / نجاح المستوى -->
 <div id="gameOverModal" class="overlay hidden">
   <div class="modalBox">
     <h2 id="modalTitle">نهاية اللعبة</h2>
@@ -208,11 +239,22 @@
     <canvas id="game"></canvas>
   </div>
 
-  <div class="controls">
-    <button class="woodBtn gold disabled" id="buyBtn">🛒 متجر (150 🪙)</button>
-    <button class="woodBtn gold disabled" id="undoBtn">↩ تراجع (1 💎)</button>
-    <button class="woodBtn" id="resetBtn">↺ إعادة</button>
-    <button class="woodBtn" id="menuBtn">☰ القائمة</button>
+  <div class="controls-group">
+    <div class="controls-title">✨ أدوات المساعدة (Boosters) ✨</div>
+    <div class="controls">
+      <button class="woodBtn gold disabled" id="btnHammer">🔨 مطرقة (50)</button>
+      <button class="woodBtn gold disabled" id="btnRotate">🔄 تدوير (30)</button>
+      <button class="woodBtn gold disabled" id="btnBomb">💣 قنبلة (100)</button>
+    </div>
+  </div>
+
+  <div class="controls-group">
+    <div class="controls">
+      <button class="woodBtn disabled" id="buyBtn">🛒 متجر (150)</button>
+      <button class="woodBtn disabled" id="undoBtn">↩ تراجع (1💎)</button>
+      <button class="woodBtn" id="resetBtn">↺ إعادة</button>
+      <button class="woodBtn" id="menuBtn">☰ القائمة</button>
+    </div>
   </div>
 </div>
 
@@ -220,73 +262,70 @@
 (function(){
   "use strict";
 
-  // --- نظام الصوتيات ---
+  // إعدادات المظهر
+  let currentTheme = 'wood';
+  let currentSound = 'classic';
+  document.getElementById('themeSelect').addEventListener('change', e => currentTheme = e.target.value);
+  document.getElementById('soundSelect').addEventListener('change', e => currentSound = e.target.value);
+
+  // نظام الصوتيات
   let audioCtx;
   function initAudio() {
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
   }
 
-  function playTone(freq, type, duration, vol=0.1) {
+  function playTone(freq, type, duration, vol=0.1, slideFreq = null) {
     if(!audioCtx) return;
     let osc = audioCtx.createOscillator();
     let gain = audioCtx.createGain();
     osc.type = type;
     osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    if(slideFreq) osc.frequency.exponentialRampToValueAtTime(slideFreq, audioCtx.currentTime + duration);
     gain.gain.setValueAtTime(vol, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start();
-    osc.stop(audioCtx.currentTime + duration);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + duration);
   }
 
   function playSound(type) {
     initAudio();
-    if(type === 'drag') {
-      playTone(300, 'sine', 0.1, 0.2);
-      setTimeout(() => playTone(450, 'sine', 0.1, 0.2), 50);
-    } else if (type === 'place') {
-      playTone(150, 'square', 0.1, 0.3);
-    } else if (type === 'crush') {
-      playTone(988, 'sine', 0.1, 0.2); 
-      setTimeout(() => playTone(1318, 'sine', 0.25, 0.3), 100); 
-    } else if (type === 'undo') {
-      playTone(300, 'sawtooth', 0.1, 0.2);
-      setTimeout(() => playTone(200, 'sawtooth', 0.2, 0.2), 100);
-    } else if (type === 'win') {
-      playTone(400, 'sine', 0.1, 0.2);
-      setTimeout(() => playTone(600, 'sine', 0.1, 0.2), 100);
-      setTimeout(() => playTone(800, 'sine', 0.3, 0.2), 200);
-    } else if (type === 'buy') {
-      playTone(600, 'square', 0.1, 0.2);
-      setTimeout(() => playTone(900, 'square', 0.15, 0.2), 100);
+    if(currentSound === 'classic') {
+        if(type === 'drag') { playTone(300, 'sine', 0.1, 0.2); setTimeout(()=>playTone(450, 'sine', 0.1, 0.2), 50); }
+        else if (type === 'place') playTone(150, 'square', 0.1, 0.3);
+        else if (type === 'crush') { playTone(988, 'sine', 0.1, 0.2); setTimeout(()=>playTone(1318, 'sine', 0.25, 0.3), 100); }
+    } else if (currentSound === 'bubble') {
+        if(type === 'drag') playTone(400, 'sine', 0.15, 0.2, 600);
+        else if (type === 'place') playTone(300, 'sine', 0.15, 0.2, 200);
+        else if (type === 'crush') { playTone(600, 'sine', 0.1, 0.2, 1200); setTimeout(()=>playTone(800, 'sine', 0.1, 0.2, 1600), 100); }
+    } else if (currentSound === 'marimba') {
+        if(type === 'drag') { playTone(350, 'triangle', 0.08, 0.3); setTimeout(()=>playTone(500, 'triangle', 0.08, 0.3), 50); }
+        else if (type === 'place') playTone(200, 'triangle', 0.08, 0.4);
+        else if (type === 'crush') { playTone(800, 'triangle', 0.1, 0.3); setTimeout(()=>playTone(1000, 'triangle', 0.1, 0.3), 80); }
     }
+    if (type === 'undo') { playTone(300, 'sawtooth', 0.1, 0.2); setTimeout(()=>playTone(200, 'sawtooth', 0.2, 0.2), 100); }
+    else if (type === 'win') { playTone(400, 'sine', 0.1, 0.2); setTimeout(()=>playTone(600, 'sine', 0.1, 0.2), 100); setTimeout(()=>playTone(800, 'sine', 0.3, 0.2), 200); }
+    else if (type === 'buy') { playTone(600, 'square', 0.1, 0.2); setTimeout(()=>playTone(900, 'square', 0.15, 0.2), 100); }
+    else if (type === 'bomb') { playTone(100, 'sawtooth', 0.4, 0.5, 50); setTimeout(()=>playTone(200, 'square', 0.3, 0.4), 100); }
   }
-
   document.body.addEventListener('pointerdown', initAudio, {once:true});
 
-  // --- إعدادات اللعبة ---
-  const gridRows = 8;
-  const gridCols = 8;
-  
+  const gridRows = 8, gridCols = 8;
   const SHAPE_TEMPLATES = [
-    { shape: [[1]], color: "#3498db" },
-    { shape: [[1,1]], color: "#e74c3c" },
-    { shape: [[1],[1]], color: "#e74c3c" },
-    { shape: [[1,1,1]], color: "#2ecc71" },
-    { shape: [[1],[1],[1]], color: "#2ecc71" },
-    { shape: [[1,1,1,1]], color: "#9b59b6" },
-    { shape: [[1],[1],[1],[1]], color: "#9b59b6" },
-    { shape: [[1,1],[1,1]], color: "#f1c40f" },
-    { shape: [[1,1,1],[1,1,1],[1,1,1]], color: "#e67e22" },
-    { shape: [[1,0],[1,1]], color: "#1abc9c" },
-    { shape: [[0,1],[1,1]], color: "#1abc9c" },
-    { shape: [[1,1],[1,0]], color: "#1abc9c" },
-    { shape: [[1,1],[0,1]], color: "#1abc9c" },
-    { shape: [[1,0,0],[1,0,0],[1,1,1]], color: "#e84393" }
+    { shape: [[1]], color: "#3498db", icon: "💎" },
+    { shape: [[1,1]], color: "#e74c3c", icon: "❤️" },
+    { shape: [[1],[1]], color: "#e74c3c", icon: "❤️" },
+    { shape: [[1,1,1]], color: "#2ecc71", icon: "🐸" },
+    { shape: [[1],[1],[1]], color: "#2ecc71", icon: "🐸" },
+    { shape: [[1,1,1,1]], color: "#9b59b6", icon: "🦄" },
+    { shape: [[1],[1],[1],[1]], color: "#9b59b6", icon: "🦄" },
+    { shape: [[1,1],[1,1]], color: "#f1c40f", icon: "⭐" },
+    { shape: [[1,1,1],[1,1,1],[1,1,1]], color: "#e67e22", icon: "🦊" },
+    { shape: [[1,0],[1,1]], color: "#1abc9c", icon: "🐢" },
+    { shape: [[0,1],[1,1]], color: "#1abc9c", icon: "🐢" },
+    { shape: [[1,1],[1,0]], color: "#1abc9c", icon: "🐢" },
+    { shape: [[1,1],[0,1]], color: "#1abc9c", icon: "🐢" },
+    { shape: [[1,0,0],[1,0,0],[1,1,1]], color: "#e84393", icon: "🐷" }
   ];
 
   const canvas = document.getElementById('game');
@@ -297,30 +336,21 @@
   const scoreLabel = document.getElementById('scoreLabel');
   const topScoreLabel = document.getElementById('topScoreLabel');
   const targetLabel = document.getElementById('targetLabel');
-  const levelBox = document.getElementById('levelBox');
   const savedLevelSpan = document.getElementById('savedLevelSpan');
   const undoBtn = document.getElementById('undoBtn');
   const buyBtn = document.getElementById('buyBtn');
-  
-  // Modals & Menus
-  const mainMenu = document.getElementById('mainMenu');
-  const gameOverModal = document.getElementById('gameOverModal');
-  const storeModal = document.getElementById('storeModal');
-  const storeGrid = document.getElementById('storeGrid');
-  const modalTitle = document.getElementById('modalTitle');
-  const modalText = document.getElementById('modalText');
-  const modalNextBtn = document.getElementById('modalNextBtn');
-  
+  const btnHammer = document.getElementById('btnHammer');
+  const btnRotate = document.getElementById('btnRotate');
+  const btnBomb = document.getElementById('btnBomb');
+
   // State
   let gameMode = 'classic';
   let currentLevel = parseInt(localStorage.getItem('blockCrushLevel')) || 1;
   let topScore = parseInt(localStorage.getItem('blockCrushTopScore')) || 0;
   
   let logicalWidth = 600, logicalHeight = 700;
-  let cellSize = 40;
-  let trayCellSize = 26; // حجم البلوكات في الأسفل (أصغر من الشبكة)
-  let gridOriginX = 0, gridOriginY = 0;
-  let trayTop = 0;
+  let cellSize = 40, trayCellSize = 26;
+  let gridOriginX = 0, gridOriginY = 0, trayTop = 0;
 
   let occupied = [];
   let pieces = [];
@@ -328,205 +358,160 @@
   let dragOffsetX = 0, dragOffsetY = 0;
   let animating = new Set();
   
-  let score = 0; // الرصيد يمثل عدد الذهب
-  let previousState = null; // حالة اللعبة للرجوع خطوة
+  let score = 0; 
+  let previousState = null;
   let particles = [];
   let nextPieceId = 0;
   let animationFrameId;
+  
+  // Boosters State
+  let activeBooster = null; // 'hammer' or 'bomb'
 
-  // دالة تحويل الرصيد إلى نص (ذهب وألماس)
   function formatCurrency(amount) {
       let diamonds = Math.floor(amount / 100);
       let gold = amount % 100;
-      if (diamonds > 0) return `${diamonds} 💎 | ${gold} 🪙`;
-      return `${gold} 🪙`;
+      return diamonds > 0 ? `${diamonds} 💎 | ${gold} 🪙` : `${gold} 🪙`;
   }
-
   savedLevelSpan.textContent = currentLevel;
   topScoreLabel.textContent = formatCurrency(topScore);
 
-  // إعداد وعرض الأشكال في المتجر
   function initStoreUI() {
+      const storeGrid = document.getElementById('storeGrid');
       storeGrid.innerHTML = '';
       SHAPE_TEMPLATES.forEach((template, index) => {
-          const blockBtn = document.createElement('div');
-          blockBtn.style.cursor = 'pointer';
-          blockBtn.style.padding = '8px';
-          blockBtn.style.background = '#2f2015';
-          blockBtn.style.borderRadius = '8px';
-          blockBtn.style.display = 'grid';
-          blockBtn.style.gridTemplateRows = `repeat(${template.shape.length}, 16px)`;
-          blockBtn.style.gridTemplateColumns = `repeat(${template.shape[0].length}, 16px)`;
-          blockBtn.style.gap = '2px';
-          blockBtn.style.border = '2px solid transparent';
-          blockBtn.style.transition = 'all 0.2s';
-          
-          blockBtn.onmouseenter = () => {
-              blockBtn.style.borderColor = template.color;
-              blockBtn.style.transform = 'scale(1.05)';
-          };
-          blockBtn.onmouseleave = () => {
-              blockBtn.style.borderColor = 'transparent';
-              blockBtn.style.transform = 'scale(1)';
-          };
-
+          const btn = document.createElement('div');
+          btn.style.cssText = `cursor:pointer; padding:8px; background:#2f2015; border-radius:8px; display:grid; gap:2px; border:2px solid transparent;`;
+          btn.style.gridTemplateRows = `repeat(${template.shape.length}, 16px)`;
+          btn.style.gridTemplateColumns = `repeat(${template.shape[0].length}, 16px)`;
+          btn.onmouseenter = () => btn.style.borderColor = template.color;
+          btn.onmouseleave = () => btn.style.borderColor = 'transparent';
           for(let r=0; r<template.shape.length; r++) {
               for(let c=0; c<template.shape[0].length; c++) {
                   const cell = document.createElement('div');
-                  if(template.shape[r][c] === 1) {
-                      cell.style.background = template.color;
-                      cell.style.borderRadius = '3px';
-                      cell.style.boxShadow = 'inset 0 0 4px rgba(0,0,0,0.5)';
-                  }
-                  blockBtn.appendChild(cell);
+                  if(template.shape[r][c]===1) { cell.style.background = template.color; cell.style.borderRadius = '3px'; }
+                  btn.appendChild(cell);
               }
           }
-
-          blockBtn.addEventListener('click', () => {
-              purchaseBlock(index);
-          });
-
-          storeGrid.appendChild(blockBtn);
+          btn.onclick = () => purchaseBlock(index);
+          storeGrid.appendChild(btn);
       });
   }
   initStoreUI();
 
   function purchaseBlock(index) {
       if (score < 150) return;
-      
-      score -= 150;
-      playSound('buy');
-      updateScoreDisplay();
-      updateButtonsState();
-      
-      const template = SHAPE_TEMPLATES[index];
-      
+      score -= 150; playSound('buy'); updateScoreDisplay(); updateButtonsState();
       let targetPiece = pieces.find(p => !p.placed);
-      
-      if (!targetPiece) {
-          generateTrayPieces();
-          targetPiece = pieces.find(p => !p.placed);
-      }
-
+      if (!targetPiece) { generateTrayPieces(); targetPiece = pieces.find(p => !p.placed); }
       if (targetPiece) {
-          targetPiece.shape = template.shape;
-          targetPiece.rows = template.shape.length;
-          targetPiece.cols = template.shape[0].length;
-          targetPiece.color = template.color;
+          Object.assign(targetPiece, {
+              shape: SHAPE_TEMPLATES[index].shape,
+              rows: SHAPE_TEMPLATES[index].shape.length,
+              cols: SHAPE_TEMPLATES[index].shape[0].length,
+              color: SHAPE_TEMPLATES[index].color,
+              icon: SHAPE_TEMPLATES[index].icon
+          });
           layoutTrayPositions();
       }
-
-      storeModal.classList.add('hidden');
+      document.getElementById('storeModal').classList.add('hidden');
       checkGameOver();
   }
 
   function initGame(mode){
-    gameMode = mode;
-    score = 0;
-    previousState = null;
-    
-    if (gameMode === 'levels') {
-      levelBox.style.display = 'block';
-    } else {
-      levelBox.style.display = 'none';
-    }
-    updateScoreDisplay();
-    updateButtonsState();
-    
+    gameMode = mode; score = 0; previousState = null; activeBooster = null;
+    document.getElementById('levelBox').style.display = (mode === 'levels') ? 'block' : 'none';
+    updateScoreDisplay(); updateButtonsState();
     occupied = Array.from({length:gridRows}, () => Array(gridCols).fill(null));
-    particles = [];
-    pieces = [];
-    nextPieceId = 0;
-    
-    generateTrayPieces();
-    resizeCanvas();
-    
-    mainMenu.classList.add('hidden');
-    gameOverModal.classList.add('hidden');
-    storeModal.classList.add('hidden');
-    
+    particles = []; pieces = []; nextPieceId = 0;
+    generateTrayPieces(); resizeCanvas();
+    document.querySelectorAll('.overlay').forEach(el => el.classList.add('hidden'));
     if(!animationFrameId) loop();
   }
 
   function generateTrayPieces() {
     for(let i=0; i<3; i++) {
-        let template = SHAPE_TEMPLATES[Math.floor(Math.random() * SHAPE_TEMPLATES.length)];
+        let t = SHAPE_TEMPLATES[Math.floor(Math.random() * SHAPE_TEMPLATES.length)];
         pieces.push({
-            id: nextPieceId++,
-            shape: template.shape,
-            rows: template.shape.length,
-            cols: template.shape[0].length,
-            color: template.color,
-            placed: false,
-            x: 0, y: 0,
-            trayX: 0, trayY: 0,
-            animSize: 0
+            id: nextPieceId++, shape: t.shape, rows: t.shape.length, cols: t.shape[0].length,
+            color: t.color, icon: t.icon, placed: false, x: 0, y: 0, trayX: 0, trayY: 0, animSize: 0
         });
     }
-    layoutTrayPositions();
-    checkGameOver();
+    layoutTrayPositions(); checkGameOver();
   }
 
   function updateScoreDisplay() {
       scoreLabel.innerHTML = formatCurrency(score);
-      
       if(score > topScore) {
           topScore = score;
           localStorage.setItem('blockCrushTopScore', topScore);
           topScoreLabel.innerHTML = formatCurrency(topScore);
       }
-      if(gameMode === 'levels') {
-          targetLabel.innerHTML = formatCurrency(currentLevel * 100);
-      }
+      if(gameMode === 'levels') targetLabel.innerHTML = formatCurrency(currentLevel * 100);
   }
 
   function updateButtonsState() {
-      if (!previousState || previousState.score < 100) {
-          undoBtn.classList.add('disabled');
-      } else {
-          undoBtn.classList.remove('disabled');
-      }
+      undoBtn.classList.toggle('disabled', (!previousState || previousState.score < 100));
+      buyBtn.classList.toggle('disabled', (score < 150));
       
-      if (score < 150) {
-          buyBtn.classList.add('disabled');
-      } else {
-          buyBtn.classList.remove('disabled');
-      }
+      btnHammer.classList.toggle('disabled', score < 50 && activeBooster !== 'hammer');
+      btnRotate.classList.toggle('disabled', score < 30);
+      btnBomb.classList.toggle('disabled', score < 100 && activeBooster !== 'bomb');
+
+      btnHammer.classList.toggle('booster-active', activeBooster === 'hammer');
+      btnBomb.classList.toggle('booster-active', activeBooster === 'bomb');
   }
+
+  function toggleBooster(type, cost) {
+      if (activeBooster === type) {
+          activeBooster = null;
+      } else if (score >= cost) {
+          activeBooster = type;
+      }
+      updateButtonsState();
+  }
+
+  btnHammer.onclick = () => toggleBooster('hammer', 50);
+  btnBomb.onclick = () => toggleBooster('bomb', 100);
+  
+  btnRotate.onclick = () => {
+      if (score >= 30) {
+          score -= 30; playSound('buy');
+          pieces.filter(p => !p.placed).forEach(p => {
+              // Rotate matrix 90 degrees
+              let newShape = Array.from({length: p.cols}, () => Array(p.rows).fill(0));
+              for(let r=0; r<p.rows; r++) {
+                  for(let c=0; c<p.cols; c++) {
+                      newShape[c][p.rows - 1 - r] = p.shape[r][c];
+                  }
+              }
+              p.shape = newShape;
+              p.rows = p.shape.length;
+              p.cols = p.shape[0].length;
+          });
+          layoutTrayPositions(); updateScoreDisplay(); updateButtonsState(); checkGameOver();
+      }
+  };
 
   function computeLayout(){
     const padding = 15;
     let availWidth = logicalWidth - padding*2;
     cellSize = Math.min((availWidth / gridCols), 50); 
-    trayCellSize = cellSize * 0.65; // القطع في الشريط السفلي أصغر بحوالي 65% من القطع داخل اللعب
-
-    const gridPixelWidth = cellSize * gridCols;
-    gridOriginX = (logicalWidth - gridPixelWidth)/2;
-    gridOriginY = padding;
-
-    const playAreaHeight = cellSize * gridRows;
-    trayTop = gridOriginY + playAreaHeight + 40;
+    trayCellSize = cellSize * 0.65; 
+    gridOriginX = (logicalWidth - (cellSize * gridCols))/2;
+    gridOriginY = padding + 10;
+    trayTop = gridOriginY + (cellSize * gridRows) + 40;
     logicalHeight = trayTop + (trayCellSize * 5) + 40;
-
     layoutTrayPositions();
   }
 
   function layoutTrayPositions(){
     const gap = 20;
     const unplacedPieces = pieces.filter(p => !p.placed);
-    // حساب المسافات بناءً على الحجم الصغير (trayCellSize)
     const totalWidth = unplacedPieces.reduce((sum,p)=> sum + p.cols*trayCellSize, 0) + gap*(unplacedPieces.length-1);
     let startX = (logicalWidth - totalWidth)/2;
-
     unplacedPieces.forEach(p => {
-      const h = p.rows * trayCellSize;
-      p.trayX = startX;
-      p.trayY = trayTop + (4 * trayCellSize - h) / 2;
-      
-      if (dragPiece !== p && !animating.has(p.id)){
-        p.x = p.trayX;
-        p.y = p.trayY;
-      }
+      p.trayX = startX; p.trayY = trayTop + (4 * trayCellSize - (p.rows * trayCellSize)) / 2;
+      if (dragPiece !== p && !animating.has(p.id)){ p.x = p.trayX; p.y = p.trayY; }
       startX += (p.cols * trayCellSize) + gap;
     });
   }
@@ -535,476 +520,281 @@
     const dpr = window.devicePixelRatio || 1;
     logicalWidth = Math.min(canvasWrap.clientWidth, 640);
     if (logicalWidth < 280) logicalWidth = 280;
-
     computeLayout();
-
-    canvas.width = Math.round(logicalWidth*dpr);
-    canvas.height = Math.round(logicalHeight*dpr);
-    canvas.style.width = logicalWidth+"px";
-    canvas.style.height = logicalHeight+"px";
+    canvas.width = Math.round(logicalWidth*dpr); canvas.height = Math.round(logicalHeight*dpr);
+    canvas.style.width = logicalWidth+"px"; canvas.style.height = logicalHeight+"px";
     ctx.setTransform(dpr,0,0,dpr,0,0);
   }
   window.addEventListener('resize', resizeCanvas);
 
   function roundRect(x,y,w,h,r){
-    ctx.beginPath();
-    ctx.moveTo(x+r,y);
-    ctx.arcTo(x+w,y,x+w,y+h,r);
-    ctx.arcTo(x+w,y+h,x,y+h,r);
-    ctx.arcTo(x,y+h,x,y,r);
-    ctx.arcTo(x,y,x+w,y,r);
-    ctx.closePath();
+    ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
   }
 
-  function drawBlockCell(px, py, size, color, alpha = 1){
-    const pad = 1.5;
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    roundRect(px+pad, py+pad, size-pad*2, size-pad*2, size*0.16);
-    
-    const grad = ctx.createLinearGradient(px,py,px,py+size);
-    grad.addColorStop(0, shadeColor(color, 25));
-    grad.addColorStop(1, shadeColor(color, -15));
-    ctx.fillStyle = grad;
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = shadeColor(color, -35);
-    ctx.stroke();
-    
-    ctx.globalAlpha = alpha*0.35;
-    roundRect(px+size*0.14, py+size*0.12, size*0.5, size*0.22, size*0.1);
-    ctx.fillStyle = "#ffffff";
-    ctx.fill();
+  function drawBlockCell(px, py, size, color, alpha = 1, icon = ""){
+    const pad = 1.5; ctx.save(); ctx.globalAlpha = alpha;
+    if(currentTheme === 'snow') {
+        ctx.beginPath(); ctx.arc(px+size/2, py+size/2, (size/2)-pad, 0, Math.PI*2);
+        let grad = ctx.createRadialGradient(px+size*0.3, py+size*0.3, size*0.1, px+size/2, py+size/2, size/2);
+        grad.addColorStop(0, "#ffffff"); grad.addColorStop(1, "#87CEFA");
+        ctx.fillStyle = grad; ctx.fill(); ctx.strokeStyle = "#4682B4"; ctx.stroke();
+    } else if (currentTheme === 'candy') {
+        roundRect(px+pad, py+pad, size-pad*2, size-pad*2, size*0.4); ctx.fillStyle = color; ctx.fill();
+        ctx.globalAlpha = alpha * 0.6; roundRect(px+pad*2, py+pad*2, size-pad*4, (size-pad*4)*0.4, size*0.3); ctx.fillStyle = "#fff"; ctx.fill();
+    } else if (currentTheme === 'icecream') {
+        roundRect(px+pad, py+pad, size-pad*2, size-pad*2, size*0.2); ctx.fillStyle = color; ctx.fill();
+        ctx.globalAlpha = 0.5; ctx.fillStyle = "#fff"; ctx.fill(); 
+        ctx.globalAlpha = alpha; ctx.font = `${size*0.5}px Arial`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText("🍦", px+size/2, py+size/2);
+    } else {
+        roundRect(px+pad, py+pad, size-pad*2, size-pad*2, size*0.16);
+        const grad = ctx.createLinearGradient(px,py,px,py+size);
+        grad.addColorStop(0, color); grad.addColorStop(1, "#00000055");
+        ctx.fillStyle = color; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "#00000033"; ctx.stroke();
+        ctx.globalAlpha = alpha*0.35; roundRect(px+size*0.14, py+size*0.12, size*0.5, size*0.22, size*0.1); ctx.fillStyle = "#fff"; ctx.fill();
+        if (currentTheme === 'animals' && icon) {
+            ctx.globalAlpha = alpha; ctx.font = `${size*0.6}px Arial`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(icon, px+size/2, py+size/2+size*0.05);
+        }
+    }
     ctx.restore();
-  }
-
-  function shadeColor(color, percent) {
-    let R = parseInt(color.substring(1,3),16);
-    let G = parseInt(color.substring(3,5),16);
-    let B = parseInt(color.substring(5,7),16);
-    R = parseInt(R * (100 + percent) / 100);
-    G = parseInt(G * (100 + percent) / 100);
-    B = parseInt(B * (100 + percent) / 100);
-    R = (R<255)?R:255; G = (G<255)?G:255; B = (B<255)?B:255;
-    let RR = ((R.toString(16).length==1)?"0"+R.toString(16):R.toString(16));
-    let GG = ((G.toString(16).length==1)?"0"+G.toString(16):G.toString(16));
-    let BB = ((B.toString(16).length==1)?"0"+B.toString(16):B.toString(16));
-    return "#"+RR+GG+BB;
   }
 
   function drawGridPanel(){
     const padOuter = 8;
-    roundRect(gridOriginX-padOuter, gridOriginY-padOuter,
-               gridCols*cellSize+padOuter*2, gridRows*cellSize+padOuter*2, 14);
-    ctx.fillStyle = "#2a1c11";
-    ctx.fill();
-
+    roundRect(gridOriginX-padOuter, gridOriginY-padOuter, gridCols*cellSize+padOuter*2, gridRows*cellSize+padOuter*2, 14);
+    ctx.fillStyle = "#2a1c11"; ctx.fill();
     for (let r=0;r<gridRows;r++){
       for (let c=0;c<gridCols;c++){
-        const x = gridOriginX + c*cellSize;
-        const y = gridOriginY + r*cellSize;
+        const x = gridOriginX + c*cellSize, y = gridOriginY + r*cellSize;
         roundRect(x+2, y+2, cellSize-4, cellSize-4, cellSize*0.14);
         ctx.fillStyle = occupied[r][c] ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.06)";
-        ctx.fill();
-        ctx.lineWidth = 1;
-        ctx.strokeStyle = "rgba(255,255,255,0.1)";
-        ctx.stroke();
-
-        if (occupied[r][c] !== null) {
-            drawBlockCell(x, y, cellSize, occupied[r][c]);
-        }
+        ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = "rgba(255,255,255,0.1)"; ctx.stroke();
+        if (occupied[r][c]) drawBlockCell(x, y, cellSize, occupied[r][c].color, 1, occupied[r][c].icon);
       }
     }
   }
 
   function drawDropPreview(){
     if (!dragPiece) return;
-    const targetCol = Math.round((dragPiece.x - gridOriginX)/cellSize);
-    const targetRow = Math.round((dragPiece.y - gridOriginY)/cellSize);
-    const valid = isValidPlacement(dragPiece, targetRow, targetCol);
-
+    const tCol = Math.round((dragPiece.x - gridOriginX)/cellSize), tRow = Math.round((dragPiece.y - gridOriginY)/cellSize);
+    const valid = isValidPlacement(dragPiece, tRow, tCol);
     for (let r=0;r<dragPiece.rows;r++){
       for (let c=0;c<dragPiece.cols;c++){
         if (dragPiece.shape[r][c] !== 1) continue;
-        const absR = targetRow+r, absC = targetCol+c;
+        const absR = tRow+r, absC = tCol+c;
         if (absR>=0 && absR<gridRows && absC>=0 && absC<gridCols){
-            const x = gridOriginX + absC*cellSize;
-            const y = gridOriginY + absR*cellSize;
-            roundRect(x+2,y+2,cellSize-4,cellSize-4,cellSize*0.14);
-            ctx.fillStyle = valid ? "rgba(46,204,113,0.5)" : "rgba(231,76,60,0.5)";
-            ctx.fill();
+            roundRect(gridOriginX + absC*cellSize+2, gridOriginY + absR*cellSize+2, cellSize-4, cellSize-4, cellSize*0.14);
+            ctx.fillStyle = valid ? "rgba(46,204,113,0.5)" : "rgba(231,76,60,0.5)"; ctx.fill();
         }
       }
     }
   }
 
-  // رسم القطع مع تحديد حجمها الحالي (currentSize)
-  function drawPiece(p, alpha, currentSize = cellSize){
-    for (let r=0;r<p.rows;r++){
-      for (let c=0;c<p.cols;c++){
-        if (p.shape[r][c] === 1){
-          drawBlockCell(p.x + c*currentSize, p.y + r*currentSize, currentSize, p.color, alpha);
-        }
-      }
-    }
+  function drawPiece(p, alpha, s = cellSize){
+    for(let r=0;r<p.rows;r++) for(let c=0;c<p.cols;c++) if(p.shape[r][c]===1) drawBlockCell(p.x+c*s, p.y+r*s, s, p.color, alpha, p.icon);
   }
 
   function spawnCoins(x, y) {
-      for(let i=0; i<5; i++) {
-          particles.push({
-              x: x + cellSize/2,
-              y: y + cellSize/2,
-              vx: (Math.random() - 0.5) * 8,
-              vy: (Math.random() - 1) * 8 - 2,
-              life: 1.0
-          });
-      }
+      for(let i=0; i<5; i++) particles.push({x: x+cellSize/2, y: y+cellSize/2, vx: (Math.random()-0.5)*8, vy: (Math.random()-1)*8-2, life: 1.0});
   }
-
   function updateAndDrawParticles() {
       for (let i = particles.length - 1; i >= 0; i--) {
-          let p = particles[i];
-          p.x += p.vx;
-          p.y += p.vy;
-          p.vy += 0.4;
-          p.life -= 0.03;
-
-          if (p.life <= 0) {
-              particles.splice(i, 1);
-          } else {
-              ctx.save();
-              ctx.globalAlpha = p.life;
-              ctx.fillStyle = "#FFD700";
-              ctx.beginPath();
-              ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.strokeStyle = "#B8860B";
-              ctx.lineWidth = 2;
-              ctx.stroke();
-              ctx.restore();
+          let p = particles[i]; p.x += p.vx; p.y += p.vy; p.vy += 0.4; p.life -= 0.03;
+          if (p.life <= 0) particles.splice(i, 1);
+          else {
+              ctx.save(); ctx.globalAlpha = p.life; ctx.fillStyle = "#FFD700";
+              ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI*2); ctx.fill();
+              ctx.strokeStyle = "#B8860B"; ctx.lineWidth=2; ctx.stroke(); ctx.restore();
           }
       }
   }
 
   function loop() {
     ctx.clearRect(0,0,logicalWidth,logicalHeight);
-    
     drawGridPanel();
+    
+    if (activeBooster) {
+        ctx.save();
+        ctx.fillStyle = "rgba(231, 76, 60, 0.15)";
+        roundRect(gridOriginX, gridOriginY, gridCols*cellSize, gridRows*cellSize, 14);
+        ctx.fill();
+        ctx.fillStyle = "#ff7675"; ctx.font = "bold 16px 'Segoe UI'"; ctx.textAlign = "center";
+        let msg = activeBooster === 'hammer' ? "🔨 انقر على مربع لتدميره" : "💣 انقر على منطقة لتفجيرها";
+        ctx.fillText(msg, logicalWidth/2, gridOriginY - 12);
+        ctx.restore();
+    }
+
     if (dragPiece) drawDropPreview();
-
     pieces.forEach(p => { 
-        if (!p.placed && p !== dragPiece) {
-            if (animating.has(p.id)) {
-                // رسم أثناء الانيميشن متدرج الحجم
-                drawPiece(p, 1, p.animSize);
-            } else {
-                // رسم البلوكات في الأسفل بحجمها الصغير
-                drawPiece(p, 1, trayCellSize);
-            }
-        } 
+        if (!p.placed && p !== dragPiece) drawPiece(p, 1, animating.has(p.id) ? p.animSize : trayCellSize);
     });
-    
-    // رسم القطعة المحمولة بالحجم الكبير
     if (dragPiece) drawPiece(dragPiece, 0.95, cellSize);
-
     updateAndDrawParticles();
-    
     animationFrameId = requestAnimationFrame(loop);
   }
 
-  function isValidPlacement(piece, gridRow, gridCol){
-    for (let r=0;r<piece.rows;r++){
-      for (let c=0;c<piece.cols;c++){
+  function isValidPlacement(piece, row, col){
+    for (let r=0;r<piece.rows;r++) for (let c=0;c<piece.cols;c++){
         if (piece.shape[r][c] !== 1) continue;
-        const absR = gridRow+r, absC = gridCol+c;
-        if (absR<0 || absR>=gridRows || absC<0 || absC>=gridCols) return false;
-        if (occupied[absR][absC] !== null) return false;
-      }
+        const absR = row+r, absC = col+c;
+        if (absR<0 || absR>=gridRows || absC<0 || absC>=gridCols || occupied[absR][absC] !== null) return false;
     }
     return true;
   }
 
   function saveState() {
       previousState = {
-          occupied: occupied.map(row => [...row]),
+          occupied: occupied.map(row => row.map(cell => cell ? {...cell} : null)),
           pieces: JSON.parse(JSON.stringify(pieces)),
-          score: score,
-          currentLevel: currentLevel
+          score: score, currentLevel: currentLevel
       };
   }
 
-  function placePiece(piece, gridRow, gridCol){
-    saveState(); 
-
-    playSound('place');
-    for (let r=0;r<piece.rows;r++){
-      for (let c=0;c<piece.cols;c++){
-        if (piece.shape[r][c] === 1){
-          occupied[gridRow+r][gridCol+c] = piece.color;
-        }
-      }
-    }
+  function placePiece(piece, r, c){
+    saveState(); playSound('place');
+    for(let i=0;i<piece.rows;i++) for(let j=0;j<piece.cols;j++) if(piece.shape[i][j]===1) occupied[r+i][c+j] = {color: piece.color, icon: piece.icon};
     piece.placed = true;
     checkLines();
-
-    if(pieces.every(p => p.placed)) {
-        pieces = [];
-        generateTrayPieces();
-    } else {
-        checkGameOver();
-    }
+    if(pieces.every(p => p.placed)) { pieces = []; generateTrayPieces(); } else { checkGameOver(); }
     updateButtonsState();
   }
 
   function checkLines() {
-      let rowsToClear = [];
-      let colsToClear = [];
-
-      for(let r=0; r<gridRows; r++) {
-          let isFull = true;
-          for(let c=0; c<gridCols; c++) {
-              if(occupied[r][c] === null) { isFull = false; break; }
-          }
-          if(isFull) rowsToClear.push(r);
-      }
-
-      for(let c=0; c<gridCols; c++) {
-          let isFull = true;
-          for(let r=0; r<gridRows; r++) {
-              if(occupied[r][c] === null) { isFull = false; break; }
-          }
-          if(isFull) colsToClear.push(c);
-      }
+      let rowsToClear = [], colsToClear = [];
+      for(let r=0; r<gridRows; r++) if(occupied[r].every(c => c !== null)) rowsToClear.push(r);
+      for(let c=0; c<gridCols; c++) if(occupied.every(row => row[c] !== null)) colsToClear.push(c);
 
       const hasCrush = rowsToClear.length > 0 || colsToClear.length > 0;
       if(hasCrush) playSound('crush');
 
-      rowsToClear.forEach(r => {
-          for(let c=0; c<gridCols; c++) {
-              spawnCoins(gridOriginX + c*cellSize, gridOriginY + r*cellSize);
-              occupied[r][c] = null;
-              score += 10;
-          }
-      });
+      rowsToClear.forEach(r => { for(let c=0; c<gridCols; c++) { spawnCoins(gridOriginX+c*cellSize, gridOriginY+r*cellSize); occupied[r][c] = null; score+=10; } });
+      colsToClear.forEach(c => { for(let r=0; r<gridRows; r++) if(occupied[r][c]) { spawnCoins(gridOriginX+c*cellSize, gridOriginY+r*cellSize); occupied[r][c] = null; score+=10; } });
 
-      colsToClear.forEach(c => {
-          for(let r=0; r<gridRows; r++) {
-              if(occupied[r][c] !== null) { 
-                  spawnCoins(gridOriginX + c*cellSize, gridOriginY + r*cellSize);
-                  occupied[r][c] = null;
-                  score += 10;
-              }
-          }
-      });
-
-      if(hasCrush) {
-          updateScoreDisplay();
-          updateButtonsState();
-          checkLevelProgress();
-      }
+      if(hasCrush) { updateScoreDisplay(); updateButtonsState(); checkLevelProgress(); }
   }
 
   function checkLevelProgress() {
-      if (gameMode === 'levels') {
-          const target = currentLevel * 100;
-          if (score >= target) {
-              playSound('win');
-              currentLevel++;
-              localStorage.setItem('blockCrushLevel', currentLevel);
-              savedLevelSpan.textContent = currentLevel;
-              
-              modalTitle.textContent = "🎉 مستوى مكتمل!";
-              modalText.textContent = `لقد جمعت الألماس المطلوب وانتقلت للمستوى ${currentLevel}.`;
-              modalNextBtn.style.display = 'block';
-              gameOverModal.classList.remove('hidden');
-          }
+      if (gameMode === 'levels' && score >= currentLevel * 100) {
+          playSound('win'); currentLevel++; localStorage.setItem('blockCrushLevel', currentLevel); savedLevelSpan.textContent = currentLevel;
+          document.getElementById('modalTitle').textContent = "🎉 مستوى مكتمل!";
+          document.getElementById('modalText').textContent = `لقد جمعت الألماس المطلوب وانتقلت للمستوى ${currentLevel}.`;
+          document.getElementById('modalNextBtn').style.display = 'block'; document.getElementById('gameOverModal').classList.remove('hidden');
       }
   }
 
   function checkGameOver() {
-      const unplaced = pieces.filter(p => !p.placed);
-      let canPlaceAny = false;
-      
-      for(let p of unplaced) {
-          for(let r=0; r<gridRows; r++) {
-              for(let c=0; c<gridCols; c++) {
-                  if(isValidPlacement(p, r, c)) {
-                      canPlaceAny = true;
-                      break;
-                  }
-              }
-              if(canPlaceAny) break;
-          }
-          if(canPlaceAny) break;
-      }
-
+      let canPlaceAny = pieces.filter(p=>!p.placed).some(p => {
+          for(let r=0; r<gridRows; r++) for(let c=0; c<gridCols; c++) if(isValidPlacement(p, r, c)) return true; return false;
+      });
       if(!canPlaceAny) {
-          modalTitle.textContent = "انتهت اللعبة";
-          modalText.textContent = `لا توجد حركات ممكنة. لقد جمعت ${formatCurrency(score)}!`;
-          modalNextBtn.style.display = 'none';
-          gameOverModal.classList.remove('hidden');
+          document.getElementById('modalTitle').textContent = "انتهت اللعبة";
+          document.getElementById('modalText').textContent = `لا توجد حركات ممكنة. لقد جمعت ${formatCurrency(score)}!`;
+          document.getElementById('modalNextBtn').style.display = 'none'; document.getElementById('gameOverModal').classList.remove('hidden');
       }
   }
 
   function undoMove() {
       if (!previousState || previousState.score < 100) return;
-
       playSound('undo');
-      
-      occupied = previousState.occupied.map(row => [...row]);
-      pieces = JSON.parse(JSON.stringify(previousState.pieces));
-      
-      score = previousState.score - 100;
-      currentLevel = previousState.currentLevel;
-      
-      previousState = null; 
-      
-      layoutTrayPositions();
-      updateScoreDisplay();
-      updateButtonsState();
-      
-      if(!gameOverModal.classList.contains('hidden')) {
-          gameOverModal.classList.add('hidden');
-      }
+      occupied = previousState.occupied.map(r => r.map(c => c ? {...c} : null)); pieces = JSON.parse(JSON.stringify(previousState.pieces));
+      score = previousState.score - 100; currentLevel = previousState.currentLevel; previousState = null; 
+      layoutTrayPositions(); updateScoreDisplay(); updateButtonsState();
+      document.getElementById('gameOverModal').classList.add('hidden');
   }
 
-  // تحريك القطعة بشكل سلس مع تصغير حجمها إذا عادت للأسفل
-  function animatePieceTo(piece, targetX, targetY, duration){
-    const startX = piece.x, startY = piece.y;
-    const startSize = cellSize; // حجم أثناء السحب
-    const targetSize = trayCellSize; // حجم الرجوع للأسفل
-    const startT = performance.now();
-    animating.add(piece.id);
-    piece.animSize = startSize;
-    
+  function animatePieceTo(piece, tx, ty, dur){
+    const sx = piece.x, sy = piece.y, sSize = cellSize, tSize = trayCellSize, start = performance.now();
+    animating.add(piece.id); piece.animSize = sSize;
     function step(now){
-      let t = Math.min(1, (now-startT)/duration);
-      const eased = 1 - Math.pow(1-t, 3);
-      piece.x = startX + (targetX-startX)*eased;
-      piece.y = startY + (targetY-startY)*eased;
-      piece.animSize = startSize + (targetSize-startSize)*eased; // تصغير تدريجي
-      if (t < 1){
-        requestAnimationFrame(step);
-      } else {
-        piece.x = targetX; piece.y = targetY;
-        piece.animSize = targetSize;
-        animating.delete(piece.id);
-      }
+      let t = Math.min(1, (now-start)/dur); const e = 1 - Math.pow(1-t, 3);
+      piece.x = sx + (tx-sx)*e; piece.y = sy + (ty-sy)*e; piece.animSize = sSize + (tSize-sSize)*e;
+      if (t < 1) requestAnimationFrame(step); else { piece.x = tx; piece.y = ty; piece.animSize = tSize; animating.delete(piece.id); }
     }
     requestAnimationFrame(step);
   }
 
   function getCanvasCoords(evt){
     const rect = canvas.getBoundingClientRect();
-    const scaleX = logicalWidth / rect.width;
-    const scaleY = logicalHeight / rect.height;
-    return {
-      x: (evt.clientX - rect.left) * scaleX,
-      y: (evt.clientY - rect.top) * scaleY
-    };
-  }
-
-  // تم تحسين الدالة لالتقاط البلوكات من مساحة واسعة (بما فيها الوسط والفراغات)
-  function findPieceAt(x,y){
-    let hitPiece = null;
-    let bestDist = Infinity;
-    
-    for (let i=pieces.length-1; i>=0; i--){
-      const p = pieces[i];
-      if (p.placed || animating.has(p.id)) continue;
-      
-      const w = p.cols * trayCellSize;
-      const h = p.rows * trayCellSize;
-      const pad = 30; // إضافة إطار لمس واسع لسهولة السحب
-      
-      // التأكد من أن الإصبع داخل الإطار الكلي للبلوكة المحددة (وليس بالضرورة على المربع الملون)
-      if (x >= p.x - pad && x <= p.x + w + pad &&
-          y >= p.y - pad && y <= p.y + h + pad) {
-          
-          const cx = p.x + w/2;
-          const cy = p.y + h/2;
-          const dist = Math.hypot(x - cx, y - cy);
-          
-          // في حال التقاطع، اختيار الأقرب للإصبع
-          if (dist < bestDist) {
-              bestDist = dist;
-              hitPiece = p;
-          }
-      }
-    }
-    return hitPiece;
+    return { x: (evt.clientX - rect.left) * (logicalWidth / rect.width), y: (evt.clientY - rect.top) * (logicalHeight / rect.height) };
   }
 
   function onPointerDown(evt){
-    if (!gameOverModal.classList.contains('hidden') || !mainMenu.classList.contains('hidden') || !storeModal.classList.contains('hidden')) return;
+    if (document.querySelectorAll('.overlay:not(.hidden)').length > 0) return;
     const {x,y} = getCanvasCoords(evt);
-    const p = findPieceAt(x,y);
-    if (!p) return;
     
-    playSound('drag');
-    dragPiece = p;
-    
-    // الحجم الجديد أثناء السحب (يكبر تلقائياً)
-    const w = p.cols * cellSize;
-    const h = p.rows * cellSize;
-    
-    // توسيط البلوكة ورفعها قليلاً فوق الإصبع لتوضيح الرؤية
-    dragOffsetX = w / 2;
-    dragOffsetY = h + 40; 
-    
-    // تحديث الإحداثيات فوراً لتفادي القفزة
-    dragPiece.x = x - dragOffsetX;
-    dragPiece.y = y - dragOffsetY;
+    // التعامل مع أدوات المساعدة (Boosters)
+    if (activeBooster) {
+        const col = Math.floor((x - gridOriginX) / cellSize);
+        const row = Math.floor((y - gridOriginY) / cellSize);
+        if (row >= 0 && row < gridRows && col >= 0 && col < gridCols) {
+            if (activeBooster === 'hammer') {
+                if (occupied[row][col]) {
+                    occupied[row][col] = null;
+                    spawnCoins(gridOriginX + col * cellSize, gridOriginY + row * cellSize);
+                    playSound('crush'); score -= 50; activeBooster = null;
+                }
+            } else if (activeBooster === 'bomb') {
+                let cleared = false;
+                for (let r = Math.max(0, row - 1); r <= Math.min(gridRows - 1, row + 1); r++) {
+                    for (let c = Math.max(0, col - 1); c <= Math.min(gridCols - 1, col + 1); c++) {
+                        if (occupied[r][c]) {
+                            occupied[r][c] = null;
+                            spawnCoins(gridOriginX + c * cellSize, gridOriginY + r * cellSize); cleared = true;
+                        }
+                    }
+                }
+                if (cleared) { playSound('bomb'); score -= 100; activeBooster = null; }
+            }
+            updateScoreDisplay(); updateButtonsState(); checkGameOver();
+        }
+        return; 
+    }
 
+    let hit = null, best = Infinity;
+    for (let p of pieces) {
+        if (p.placed || animating.has(p.id)) continue;
+        const w = p.cols * trayCellSize, h = p.rows * trayCellSize;
+        if (x >= p.x-30 && x <= p.x+w+30 && y >= p.y-30 && y <= p.y+h+30) {
+            const d = Math.hypot(x - (p.x+w/2), y - (p.y+h/2));
+            if (d < best) { best = d; hit = p; }
+        }
+    }
+    if (!hit) return;
+    
+    playSound('drag'); dragPiece = hit;
+    dragOffsetX = (hit.cols * cellSize) / 2; dragOffsetY = (hit.rows * cellSize) + 40; 
+    dragPiece.x = x - dragOffsetX; dragPiece.y = y - dragOffsetY;
     canvas.setPointerCapture(evt.pointerId);
   }
 
   function onPointerMove(evt){
     if (!dragPiece) return;
     const {x,y} = getCanvasCoords(evt);
-    dragPiece.x = x - dragOffsetX;
-    dragPiece.y = y - dragOffsetY;
+    dragPiece.x = x - dragOffsetX; dragPiece.y = y - dragOffsetY;
   }
 
-  function onPointerUp(evt){
+  function onPointerUp(){
     if (!dragPiece) return;
-    const p = dragPiece;
-    dragPiece = null;
-
-    const targetCol = Math.round((p.x - gridOriginX)/cellSize);
-    const targetRow = Math.round((p.y - gridOriginY)/cellSize);
-
-    if (isValidPlacement(p, targetRow, targetCol)){
-      placePiece(p, targetRow, targetCol);
-    } else {
-      animatePieceTo(p, p.trayX, p.trayY, 200);
-    }
+    const p = dragPiece; dragPiece = null;
+    const tCol = Math.round((p.x - gridOriginX)/cellSize), tRow = Math.round((p.y - gridOriginY)/cellSize);
+    if (isValidPlacement(p, tRow, tCol)) placePiece(p, tRow, tCol); else animatePieceTo(p, p.trayX, p.trayY, 200);
   }
 
-  canvas.addEventListener('pointerdown', onPointerDown);
-  canvas.addEventListener('pointermove', onPointerMove);
-  canvas.addEventListener('pointerup', onPointerUp);
-  canvas.addEventListener('pointercancel', onPointerUp);
+  canvas.addEventListener('pointerdown', onPointerDown); canvas.addEventListener('pointermove', onPointerMove);
+  canvas.addEventListener('pointerup', onPointerUp); canvas.addEventListener('pointercancel', onPointerUp);
 
   document.getElementById('btnModeLevels').addEventListener('click', () => initGame('levels'));
   document.getElementById('btnModeClassic').addEventListener('click', () => initGame('classic'));
   document.getElementById('resetBtn').addEventListener('click', () => initGame(gameMode));
   document.getElementById('undoBtn').addEventListener('click', undoMove);
-  document.getElementById('menuBtn').addEventListener('click', () => mainMenu.classList.remove('hidden'));
-  
-  buyBtn.addEventListener('click', () => {
-      if (score >= 150) storeModal.classList.remove('hidden');
-  });
-  document.getElementById('closeStoreBtn').addEventListener('click', () => {
-      storeModal.classList.add('hidden');
-  });
-  
+  document.getElementById('menuBtn').addEventListener('click', () => document.getElementById('mainMenu').classList.remove('hidden'));
+  document.getElementById('btnSettings').addEventListener('click', () => document.getElementById('settingsModal').classList.remove('hidden'));
+  document.getElementById('closeSettingsBtn').addEventListener('click', () => document.getElementById('settingsModal').classList.add('hidden'));
+  buyBtn.addEventListener('click', () => { if (score >= 150) document.getElementById('storeModal').classList.remove('hidden'); });
+  document.getElementById('closeStoreBtn').addEventListener('click', () => document.getElementById('storeModal').classList.add('hidden'));
   document.getElementById('modalReplayBtn').addEventListener('click', () => initGame(gameMode));
   document.getElementById('modalNextBtn').addEventListener('click', () => initGame('levels'));
-  document.getElementById('modalMenuBtn').addEventListener('click', () => {
-      gameOverModal.classList.add('hidden');
-      mainMenu.classList.remove('hidden');
-  });
+  document.getElementById('modalMenuBtn').addEventListener('click', () => { document.getElementById('gameOverModal').classList.add('hidden'); document.getElementById('mainMenu').classList.remove('hidden'); });
 
 })();
 </script>
