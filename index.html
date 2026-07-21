@@ -169,7 +169,7 @@
 <div id="mainMenu" class="overlay">
   <div class="modalBox">
     <h2>🧩 Block Crush</h2>
-    <p>العملة: كل 100 🪙 = 1 💎</p>
+    <p>اجمع أكبر عدد من العملات الذهبية 🪙</p>
     <div class="menu-btns">
       <button class="woodBtn gold" id="btnModeLevels">🌟 وضع المستويات (<span id="savedLevelSpan">1</span>)</button>
       <button class="woodBtn" id="btnModeClassic">♾️ الوضع الكلاسيكي</button>
@@ -233,8 +233,7 @@
   <header>
     <div class="stats-row">
       <div class="stat-box"><span>أعلى رصيد 🏆</span><div id="topScoreLabel">0 🪙</div></div>
-      <div class="stat-box"><span>المحفظة 💎/🪙</span><div id="scoreLabel">0 🪙</div></div>
-      <div class="stat-box"><span>حصالة القلوب 🐷</span><div id="heartsBankLabel">0 ❤️</div></div>
+      <div class="stat-box"><span>الرصيد 🪙</span><div id="scoreLabel">0 🪙</div></div>
       <div class="stat-box" id="levelBox"><span>الهدف 🎯</span><div id="targetLabel">-</div></div>
     </div>
   </header>
@@ -254,7 +253,7 @@
   <div class="controls-group">
     <div class="controls">
       <button class="woodBtn disabled" id="buyBtn">🛒 متجر (150)</button>
-      <button class="woodBtn disabled" id="undoBtn">↩ تراجع (1💎)</button>
+      <button class="woodBtn disabled" id="undoBtn">↩ تراجع (100🪙)</button>
       <button class="woodBtn" id="resetBtn">↺ إعادة</button>
       <button class="woodBtn" id="menuBtn">☰ القائمة</button>
     </div>
@@ -386,21 +385,11 @@
   let particles = [];
   let nextPieceId = 0;
   let animationFrameId;
-
-  // حصالة القلوب: تتجمّع فيها القلوب الناتجة عن تكسير بلوكات القلوب، وتُحفظ بشكل دائم
-  const heartsBankLabel = document.getElementById('heartsBankLabel');
-  let heartsBank = parseInt(localStorage.getItem('blockCrushHeartsBank')) || 0;
-  function updateHeartsBankDisplay() {
-      heartsBankLabel.textContent = heartsBank + " ❤️";
-  }
-  updateHeartsBankDisplay();
   
   let activeBooster = null; // 'bomb'
 
   function formatCurrency(amount) {
-      let diamonds = Math.floor(amount / 100);
-      let gold = amount % 100;
-      return diamonds > 0 ? `${diamonds} 💎 | ${gold} 🪙` : `${gold} 🪙`;
+      return `${amount} 🪙`;
   }
   savedLevelSpan.textContent = currentLevel;
   topScoreLabel.textContent = formatCurrency(topScore);
@@ -536,8 +525,27 @@
   function computeLayout(){
     const padding = 15;
     let availWidth = logicalWidth - padding*2;
-    cellSize = Math.min((availWidth / gridCols), 50); 
-    trayCellSize = cellSize * 0.65; 
+    cellSize = Math.min((availWidth / gridCols), 50);
+
+    // نقدّر المساحة العمودية المتاحة فعلياً على الشاشة (بعد خصم الهيدر وأزرار التحكم)
+    // حتى لا تخرج قطع اللعبة أو أيقوناتها خارج حدود الشاشة على الهاتف
+    const headerEl = document.querySelector('header');
+    const controlsEls = document.querySelectorAll('.controls-group');
+    let usedHeight = 40;
+    if (headerEl) usedHeight += headerEl.getBoundingClientRect().height;
+    controlsEls.forEach(el => usedHeight += el.getBoundingClientRect().height + 10);
+    const availableViewportHeight = Math.max(320, window.innerHeight - usedHeight);
+
+    let estTrayCellSize = cellSize * 0.65;
+    let estGridOriginY = padding + 10;
+    let estTrayTop = estGridOriginY + (cellSize * gridRows) + 40;
+    let estLogicalHeight = estTrayTop + (estTrayCellSize * 5) + 40;
+    if (estLogicalHeight > availableViewportHeight) {
+        const scale = availableViewportHeight / estLogicalHeight;
+        cellSize = Math.max(22, cellSize * scale);
+    }
+
+    trayCellSize = cellSize * 0.65;
     gridOriginX = (logicalWidth - (cellSize * gridCols))/2;
     gridOriginY = padding + 10;
     trayTop = gridOriginY + (cellSize * gridRows) + 40;
@@ -567,6 +575,7 @@
     ctx.setTransform(dpr,0,0,dpr,0,0);
   }
   window.addEventListener('resize', resizeCanvas);
+  window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 200));
 
   function roundRect(x,y,w,h,r){
     ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
@@ -716,7 +725,6 @@
           const px = gridOriginX+c*cellSize, py = gridOriginY+r*cellSize;
           if (cell && isHeartTemplate(cell.templateIndex)) {
               spawnHearts(px, py);
-              heartsBank++;
           } else {
               spawnCoins(px, py);
           }
@@ -726,8 +734,6 @@
       colsToClear.forEach(c => { for(let r=0; r<gridRows; r++) if(occupied[r][c]) clearCell(r, c); });
 
       if(hasCrush) {
-          localStorage.setItem('blockCrushHeartsBank', heartsBank);
-          updateHeartsBankDisplay();
           updateScoreDisplay(); updateButtonsState(); checkLevelProgress();
       }
   }
@@ -736,7 +742,7 @@
       if (gameMode === 'levels' && score >= currentLevel * 100) {
           playSound('win'); currentLevel++; localStorage.setItem('blockCrushLevel', currentLevel); savedLevelSpan.textContent = currentLevel;
           document.getElementById('modalTitle').textContent = "🎉 مستوى مكتمل!";
-          document.getElementById('modalText').textContent = `لقد جمعت الألماس المطلوب وانتقلت للمستوى ${currentLevel}.`;
+          document.getElementById('modalText').textContent = `لقد جمعت العملات المطلوبة وانتقلت للمستوى ${currentLevel}.`;
           document.getElementById('modalNextBtn').style.display = 'block'; document.getElementById('gameOverModal').classList.remove('hidden');
       }
   }
@@ -813,9 +819,19 @@
     }
     if (!hit) return;
     
-    playSound('drag'); dragPiece = hit;
+    function clampDragPosition(piece){
+    const w = piece.cols * cellSize, h = piece.rows * cellSize;
+    const margin = 4;
+    if (piece.x < margin) piece.x = margin;
+    if (piece.x + w > logicalWidth - margin) piece.x = logicalWidth - margin - w;
+    if (piece.y < margin) piece.y = margin;
+    if (piece.y + h > logicalHeight - margin) piece.y = logicalHeight - margin - h;
+  }
+
+  playSound('drag'); dragPiece = hit;
     dragOffsetX = (hit.cols * cellSize) / 2; dragOffsetY = (hit.rows * cellSize) + 40; 
     dragPiece.x = x - dragOffsetX; dragPiece.y = y - dragOffsetY;
+    clampDragPosition(dragPiece);
     canvas.setPointerCapture(evt.pointerId);
   }
 
@@ -823,6 +839,7 @@
     if (!dragPiece) return;
     const {x,y} = getCanvasCoords(evt);
     dragPiece.x = x - dragOffsetX; dragPiece.y = y - dragOffsetY;
+    clampDragPosition(dragPiece);
   }
 
   function onPointerUp(){
