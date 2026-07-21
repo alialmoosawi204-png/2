@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Block Crush — Boosters Edition</title>
+<title>Block Crush — Boosters & Difficulty Edition</title>
 <style>
   :root{
     --wood-dark:#5c3a21;
@@ -43,10 +43,12 @@
   }
   .stats-row {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     width: 100%;
     gap: 10px;
   }
+  .stats-row .stat-box { min-width: 120px; }
   .stat-box {
     flex: 1;
     text-align: center;
@@ -185,8 +187,9 @@
         <option value="wood">🪵 خشبي (كلاسيكي)</option>
         <option value="candy">🍬 حلوى (لامع)</option>
         <option value="icecream">🍦 آيس كريم (باستيل)</option>
-        <option value="snow">❄️ كرات ثلجية</option>
-        <option value="animals">🐾 قلوب وحيوانات</option>
+        <option value="emoji">🎉 إيموجي متنوع</option>
+        <option value="hearts">❤️🌸 قلوب وزهور</option>
+        <option value="animals">🐾 حيوانات فقط (بدون قلوب)</option>
       </select>
     </div>
     <div class="setting-group">
@@ -231,6 +234,7 @@
     <div class="stats-row">
       <div class="stat-box"><span>أعلى رصيد 🏆</span><div id="topScoreLabel">0 🪙</div></div>
       <div class="stat-box"><span>المحفظة 💎/🪙</span><div id="scoreLabel">0 🪙</div></div>
+      <div class="stat-box"><span>حصالة القلوب 🐷</span><div id="heartsBankLabel">0 ❤️</div></div>
       <div class="stat-box" id="levelBox"><span>الهدف 🎯</span><div id="targetLabel">-</div></div>
     </div>
   </header>
@@ -242,7 +246,6 @@
   <div class="controls-group">
     <div class="controls-title">✨ أدوات المساعدة (Boosters) ✨</div>
     <div class="controls">
-      <button class="woodBtn gold disabled" id="btnHammer">🔨 مطرقة (50)</button>
       <button class="woodBtn gold disabled" id="btnRotate">🔄 تدوير (30)</button>
       <button class="woodBtn gold disabled" id="btnBomb">💣 قنبلة (100)</button>
     </div>
@@ -325,8 +328,29 @@
     { shape: [[0,1],[1,1]], color: "#1abc9c", icon: "🐢" },
     { shape: [[1,1],[1,0]], color: "#1abc9c", icon: "🐢" },
     { shape: [[1,1],[0,1]], color: "#1abc9c", icon: "🐢" },
-    { shape: [[1,0,0],[1,0,0],[1,1,1]], color: "#e84393", icon: "🐷" }
+    { shape: [[1,0,0],[1,0,0],[1,1,1]], color: "#e84393", icon: "🐷" },
+    // الأشكال الجديدة L (مكونة من 4 بلوكات)
+    { shape: [[1,0],[1,0],[1,1]], color: "#34495e", icon: "⚓" }, // L1
+    { shape: [[0,1],[0,1],[1,1]], color: "#34495e", icon: "⚓" }, // J1
+    { shape: [[1,1,1],[1,0,0]], color: "#34495e", icon: "⚓" }, // L2
+    { shape: [[1,1,1],[0,0,1]], color: "#34495e", icon: "⚓" }  // J2
   ];
+
+  // مجموعات الأيقونات لكل قالب شكل، حسب الوضع المختار (نفس ترتيب SHAPE_TEMPLATES)
+  const ANIMALS_ICONS = ["🐭","🐰","🐰","🐸","🐸","🦄","🦄","🐼","🦊","🐢","🐢","🐢","🐢","🐷","🐨","🐨","🐨","🐨"];
+  const HEARTS_FLOWERS_ICONS = ["🌸","❤️","❤️","🌷","🌷","💐","💐","💖","🌹","💕","💕","💕","💕","🌺","💗","💗","💗","💗"];
+  const EMOJI_ICONS = ["💎","⚡","⚡","🔥","🔥","🌈","🌈","⭐","🎯","🍄","🍄","🍄","🍄","🎪","🚀","🚀","🚀","🚀"];
+
+  function getIconForTheme(idx) {
+    if (idx === undefined || idx === null) return "";
+    if (currentTheme === 'animals') return ANIMALS_ICONS[idx] || "";
+    if (currentTheme === 'hearts') return HEARTS_FLOWERS_ICONS[idx] || "";
+    if (currentTheme === 'emoji') return EMOJI_ICONS[idx] || "";
+    return "";
+  }
+  function isHeartTemplate(idx) {
+    return currentTheme === 'hearts' && HEARTS_FLOWERS_ICONS[idx] === '❤️';
+  }
 
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
@@ -339,7 +363,6 @@
   const savedLevelSpan = document.getElementById('savedLevelSpan');
   const undoBtn = document.getElementById('undoBtn');
   const buyBtn = document.getElementById('buyBtn');
-  const btnHammer = document.getElementById('btnHammer');
   const btnRotate = document.getElementById('btnRotate');
   const btnBomb = document.getElementById('btnBomb');
 
@@ -363,9 +386,16 @@
   let particles = [];
   let nextPieceId = 0;
   let animationFrameId;
+
+  // حصالة القلوب: تتجمّع فيها القلوب الناتجة عن تكسير بلوكات القلوب، وتُحفظ بشكل دائم
+  const heartsBankLabel = document.getElementById('heartsBankLabel');
+  let heartsBank = parseInt(localStorage.getItem('blockCrushHeartsBank')) || 0;
+  function updateHeartsBankDisplay() {
+      heartsBankLabel.textContent = heartsBank + " ❤️";
+  }
+  updateHeartsBankDisplay();
   
-  // Boosters State
-  let activeBooster = null; // 'hammer' or 'bomb'
+  let activeBooster = null; // 'bomb'
 
   function formatCurrency(amount) {
       let diamonds = Math.floor(amount / 100);
@@ -409,7 +439,7 @@
               rows: SHAPE_TEMPLATES[index].shape.length,
               cols: SHAPE_TEMPLATES[index].shape[0].length,
               color: SHAPE_TEMPLATES[index].color,
-              icon: SHAPE_TEMPLATES[index].icon
+              templateIndex: index
           });
           layoutTrayPositions();
       }
@@ -429,11 +459,28 @@
   }
 
   function generateTrayPieces() {
+    // تصفية الأشكال بناءً على مستوى الصعوبة
+    let availableTemplates = SHAPE_TEMPLATES.map((t, idx) => ({t, idx})).filter(({t}) => {
+        if (currentLevel > 10) {
+            // حساب عدد البلوكات (المربعات الممتلئة) في الشكل
+            let blockCount = 0;
+            for (let r = 0; r < t.shape.length; r++) {
+                for (let c = 0; c < t.shape[r].length; c++) {
+                    blockCount += t.shape[r][c];
+                }
+            }
+            // إذا كان الشكل يتكون من بلوكة واحدة أو اثنين، لا تعرضه بعد المستوى 10
+            if (blockCount <= 2) return false;
+        }
+        return true;
+    });
+
     for(let i=0; i<3; i++) {
-        let t = SHAPE_TEMPLATES[Math.floor(Math.random() * SHAPE_TEMPLATES.length)];
+        let entry = availableTemplates[Math.floor(Math.random() * availableTemplates.length)];
+        let t = entry.t;
         pieces.push({
             id: nextPieceId++, shape: t.shape, rows: t.shape.length, cols: t.shape[0].length,
-            color: t.color, icon: t.icon, placed: false, x: 0, y: 0, trayX: 0, trayY: 0, animSize: 0
+            color: t.color, templateIndex: entry.idx, placed: false, x: 0, y: 0, trayX: 0, trayY: 0, animSize: 0
         });
     }
     layoutTrayPositions(); checkGameOver();
@@ -452,12 +499,8 @@
   function updateButtonsState() {
       undoBtn.classList.toggle('disabled', (!previousState || previousState.score < 100));
       buyBtn.classList.toggle('disabled', (score < 150));
-      
-      btnHammer.classList.toggle('disabled', score < 50 && activeBooster !== 'hammer');
       btnRotate.classList.toggle('disabled', score < 30);
       btnBomb.classList.toggle('disabled', score < 100 && activeBooster !== 'bomb');
-
-      btnHammer.classList.toggle('booster-active', activeBooster === 'hammer');
       btnBomb.classList.toggle('booster-active', activeBooster === 'bomb');
   }
 
@@ -470,14 +513,12 @@
       updateButtonsState();
   }
 
-  btnHammer.onclick = () => toggleBooster('hammer', 50);
   btnBomb.onclick = () => toggleBooster('bomb', 100);
   
   btnRotate.onclick = () => {
       if (score >= 30) {
           score -= 30; playSound('buy');
           pieces.filter(p => !p.placed).forEach(p => {
-              // Rotate matrix 90 degrees
               let newShape = Array.from({length: p.cols}, () => Array(p.rows).fill(0));
               for(let r=0; r<p.rows; r++) {
                   for(let c=0; c<p.cols; c++) {
@@ -534,12 +575,7 @@
 
   function drawBlockCell(px, py, size, color, alpha = 1, icon = ""){
     const pad = 1.5; ctx.save(); ctx.globalAlpha = alpha;
-    if(currentTheme === 'snow') {
-        ctx.beginPath(); ctx.arc(px+size/2, py+size/2, (size/2)-pad, 0, Math.PI*2);
-        let grad = ctx.createRadialGradient(px+size*0.3, py+size*0.3, size*0.1, px+size/2, py+size/2, size/2);
-        grad.addColorStop(0, "#ffffff"); grad.addColorStop(1, "#87CEFA");
-        ctx.fillStyle = grad; ctx.fill(); ctx.strokeStyle = "#4682B4"; ctx.stroke();
-    } else if (currentTheme === 'candy') {
+    if (currentTheme === 'candy') {
         roundRect(px+pad, py+pad, size-pad*2, size-pad*2, size*0.4); ctx.fillStyle = color; ctx.fill();
         ctx.globalAlpha = alpha * 0.6; roundRect(px+pad*2, py+pad*2, size-pad*4, (size-pad*4)*0.4, size*0.3); ctx.fillStyle = "#fff"; ctx.fill();
     } else if (currentTheme === 'icecream') {
@@ -552,7 +588,7 @@
         grad.addColorStop(0, color); grad.addColorStop(1, "#00000055");
         ctx.fillStyle = color; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "#00000033"; ctx.stroke();
         ctx.globalAlpha = alpha*0.35; roundRect(px+size*0.14, py+size*0.12, size*0.5, size*0.22, size*0.1); ctx.fillStyle = "#fff"; ctx.fill();
-        if (currentTheme === 'animals' && icon) {
+        if (icon) {
             ctx.globalAlpha = alpha; ctx.font = `${size*0.6}px Arial`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(icon, px+size/2, py+size/2+size*0.05);
         }
     }
@@ -569,7 +605,7 @@
         roundRect(x+2, y+2, cellSize-4, cellSize-4, cellSize*0.14);
         ctx.fillStyle = occupied[r][c] ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.06)";
         ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = "rgba(255,255,255,0.1)"; ctx.stroke();
-        if (occupied[r][c]) drawBlockCell(x, y, cellSize, occupied[r][c].color, 1, occupied[r][c].icon);
+        if (occupied[r][c]) drawBlockCell(x, y, cellSize, occupied[r][c].color, 1, getIconForTheme(occupied[r][c].templateIndex));
       }
     }
   }
@@ -591,17 +627,25 @@
   }
 
   function drawPiece(p, alpha, s = cellSize){
-    for(let r=0;r<p.rows;r++) for(let c=0;c<p.cols;c++) if(p.shape[r][c]===1) drawBlockCell(p.x+c*s, p.y+r*s, s, p.color, alpha, p.icon);
+    const icon = getIconForTheme(p.templateIndex);
+    for(let r=0;r<p.rows;r++) for(let c=0;c<p.cols;c++) if(p.shape[r][c]===1) drawBlockCell(p.x+c*s, p.y+r*s, s, p.color, alpha, icon);
   }
 
   function spawnCoins(x, y) {
-      for(let i=0; i<5; i++) particles.push({x: x+cellSize/2, y: y+cellSize/2, vx: (Math.random()-0.5)*8, vy: (Math.random()-1)*8-2, life: 1.0});
+      for(let i=0; i<5; i++) particles.push({x: x+cellSize/2, y: y+cellSize/2, vx: (Math.random()-0.5)*8, vy: (Math.random()-1)*8-2, life: 1.0, type: 'coin'});
+  }
+  function spawnHearts(x, y) {
+      for(let i=0; i<5; i++) particles.push({x: x+cellSize/2, y: y+cellSize/2, vx: (Math.random()-0.5)*8, vy: (Math.random()-1)*8-2, life: 1.0, type: 'heart'});
   }
   function updateAndDrawParticles() {
       for (let i = particles.length - 1; i >= 0; i--) {
           let p = particles[i]; p.x += p.vx; p.y += p.vy; p.vy += 0.4; p.life -= 0.03;
           if (p.life <= 0) particles.splice(i, 1);
-          else {
+          else if (p.type === 'heart') {
+              ctx.save(); ctx.globalAlpha = p.life; ctx.font = "18px Arial";
+              ctx.textAlign = "center"; ctx.textBaseline = "middle";
+              ctx.fillText("❤️", p.x, p.y); ctx.restore();
+          } else {
               ctx.save(); ctx.globalAlpha = p.life; ctx.fillStyle = "#FFD700";
               ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI*2); ctx.fill();
               ctx.strokeStyle = "#B8860B"; ctx.lineWidth=2; ctx.stroke(); ctx.restore();
@@ -619,7 +663,7 @@
         roundRect(gridOriginX, gridOriginY, gridCols*cellSize, gridRows*cellSize, 14);
         ctx.fill();
         ctx.fillStyle = "#ff7675"; ctx.font = "bold 16px 'Segoe UI'"; ctx.textAlign = "center";
-        let msg = activeBooster === 'hammer' ? "🔨 انقر على مربع لتدميره" : "💣 انقر على منطقة لتفجيرها";
+        let msg = "💣 انقر على منطقة لتفجيرها";
         ctx.fillText(msg, logicalWidth/2, gridOriginY - 12);
         ctx.restore();
     }
@@ -652,7 +696,7 @@
 
   function placePiece(piece, r, c){
     saveState(); playSound('place');
-    for(let i=0;i<piece.rows;i++) for(let j=0;j<piece.cols;j++) if(piece.shape[i][j]===1) occupied[r+i][c+j] = {color: piece.color, icon: piece.icon};
+    for(let i=0;i<piece.rows;i++) for(let j=0;j<piece.cols;j++) if(piece.shape[i][j]===1) occupied[r+i][c+j] = {color: piece.color, templateIndex: piece.templateIndex};
     piece.placed = true;
     checkLines();
     if(pieces.every(p => p.placed)) { pieces = []; generateTrayPieces(); } else { checkGameOver(); }
@@ -667,10 +711,25 @@
       const hasCrush = rowsToClear.length > 0 || colsToClear.length > 0;
       if(hasCrush) playSound('crush');
 
-      rowsToClear.forEach(r => { for(let c=0; c<gridCols; c++) { spawnCoins(gridOriginX+c*cellSize, gridOriginY+r*cellSize); occupied[r][c] = null; score+=10; } });
-      colsToClear.forEach(c => { for(let r=0; r<gridRows; r++) if(occupied[r][c]) { spawnCoins(gridOriginX+c*cellSize, gridOriginY+r*cellSize); occupied[r][c] = null; score+=10; } });
+      function clearCell(r, c) {
+          const cell = occupied[r][c];
+          const px = gridOriginX+c*cellSize, py = gridOriginY+r*cellSize;
+          if (cell && isHeartTemplate(cell.templateIndex)) {
+              spawnHearts(px, py);
+              heartsBank++;
+          } else {
+              spawnCoins(px, py);
+          }
+          occupied[r][c] = null; score += 10;
+      }
+      rowsToClear.forEach(r => { for(let c=0; c<gridCols; c++) clearCell(r, c); });
+      colsToClear.forEach(c => { for(let r=0; r<gridRows; r++) if(occupied[r][c]) clearCell(r, c); });
 
-      if(hasCrush) { updateScoreDisplay(); updateButtonsState(); checkLevelProgress(); }
+      if(hasCrush) {
+          localStorage.setItem('blockCrushHeartsBank', heartsBank);
+          updateHeartsBankDisplay();
+          updateScoreDisplay(); updateButtonsState(); checkLevelProgress();
+      }
   }
 
   function checkLevelProgress() {
@@ -722,18 +781,11 @@
     if (document.querySelectorAll('.overlay:not(.hidden)').length > 0) return;
     const {x,y} = getCanvasCoords(evt);
     
-    // التعامل مع أدوات المساعدة (Boosters)
     if (activeBooster) {
         const col = Math.floor((x - gridOriginX) / cellSize);
         const row = Math.floor((y - gridOriginY) / cellSize);
         if (row >= 0 && row < gridRows && col >= 0 && col < gridCols) {
-            if (activeBooster === 'hammer') {
-                if (occupied[row][col]) {
-                    occupied[row][col] = null;
-                    spawnCoins(gridOriginX + col * cellSize, gridOriginY + row * cellSize);
-                    playSound('crush'); score -= 50; activeBooster = null;
-                }
-            } else if (activeBooster === 'bomb') {
+            if (activeBooster === 'bomb') {
                 let cleared = false;
                 for (let r = Math.max(0, row - 1); r <= Math.min(gridRows - 1, row + 1); r++) {
                     for (let c = Math.max(0, col - 1); c <= Math.min(gridCols - 1, col + 1); c++) {
