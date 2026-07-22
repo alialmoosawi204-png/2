@@ -2,8 +2,12 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<!-- تحديد أبعاد الشاشة ومنع التكبير بشكل صارم من خلال الميتا تاج -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Block Crush — Smart AI Edition</title>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
 <style>
   :root{
     --wood-dark:#5c3a21;
@@ -15,16 +19,25 @@
     --danger:#e74c3c;
   }
   *{box-sizing:border-box;}
+  
+  /* قفل الصفحة بالكامل لمنع السحب والتكبير والتحديد */
   html,body{
-    margin:0;padding:0;height:100%;
+    margin:0; padding:0;
+    width: 100%; height: 100%;
+    position: fixed;
+    overflow: hidden;
+    overscroll-behavior-y: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    user-select: none;
+    touch-action: none; 
     font-family:'Trebuchet MS','Segoe UI',Verdana,sans-serif;
     background:
       repeating-linear-gradient(90deg, var(--wood-mid) 0px, var(--wood-light) 6px, var(--wood-mid) 12px),
       var(--wood-dark);
     color:#fff3e0;
-    overflow-x:hidden;
-    user-select: none;
   }
+  
   #app{
     min-height:100%;
     display:flex;
@@ -99,6 +112,7 @@
     cursor:pointer;
     box-shadow:0 4px 0 var(--panel), 0 6px 10px rgba(0,0,0,.4);
     transition:all .1s ease;
+    -webkit-tap-highlight-color: transparent; /* إخفاء وميض النقر على الهواتف */
   }
   button.woodBtn:active{
     transform:translateY(3px);
@@ -127,36 +141,47 @@
   }
 
   .overlay{
-    position:fixed; inset:0; background:rgba(20,12,6,.85);
+    position:fixed; inset:0; background:rgba(20,12,6,.9);
     display:flex; align-items:center; justify-content:center;
-    z-index:50; flex-direction: column;
+    z-index:50; flex-direction: column; padding:20px;
+    touch-action: pan-y; /* السماح بالسحب داخل النوافذ المنبثقة فقط */
   }
   .hidden { display: none !important; }
   .modalBox{
     background:linear-gradient(180deg,#7a4c28,#4a2f1a);
     border:4px solid var(--accent);
-    border-radius:18px; padding:30px 34px;
-    text-align:center; max-width:90vw; width: 400px;
+    border-radius:18px; padding:20px;
+    text-align:center; max-width:100%; width: 450px;
     box-shadow:0 10px 40px rgba(0,0,0,.6);
     animation:pop .35s ease;
+    max-height: 90vh;
+    overflow-y: auto;
+    touch-action: pan-y;
   }
   @keyframes pop{
     0%{ transform:scale(.6); opacity:0; }
     70%{ transform:scale(1.06); opacity:1; }
     100%{ transform:scale(1); }
   }
-  .modalBox h2{ margin:0 0 15px; color:var(--accent); font-size:28px; text-shadow:2px 2px 0 #2c1c10; }
-  .modalBox p{ margin:0 0 20px; font-size:16px; line-height: 1.5; }
-  .menu-btns { display: flex; flex-direction: column; gap: 15px; }
+  .modalBox h2{ margin:0 0 15px; color:var(--accent); font-size:24px; text-shadow:2px 2px 0 #2c1c10; }
+  .menu-btns { display: flex; flex-direction: column; gap: 10px; margin-top: 15px;}
 
-  .setting-group { margin-bottom: 15px; text-align: right; }
-  .setting-group label { display: block; margin-bottom: 5px; color: #ffd700; font-weight: bold; }
-  .setting-group select { width: 100%; padding: 8px; border-radius: 8px; background: #2a1c11; color: #fff; border: 2px solid var(--accent-dark); font-family: inherit; font-size: 16px;}
+  .setting-group { margin-bottom: 12px; text-align: right; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px;}
+  .setting-group label { display: block; margin-bottom: 5px; color: #ffd700; font-weight: bold; font-size:14px; }
+  .setting-group select, .setting-group input { 
+      width: 100%; padding: 8px; border-radius: 8px; background: #2a1c11; color: #fff; 
+      border: 2px solid var(--accent-dark); font-family: inherit; font-size: 14px;
+      outline: none;
+  }
+  
+  .checkbox-group { display:flex; flex-wrap:wrap; gap:8px; }
+  .checkbox-label { font-size:13px; color:#fff; display:flex; align-items:center; gap:5px; background:var(--panel); padding:4px 8px; border-radius:6px;}
 
   #storeGrid {
     display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;
     max-height: 45vh; overflow-y: auto; padding: 10px;
     background: rgba(0,0,0,0.2); border-radius: 12px; margin-bottom: 20px;
+    touch-action: pan-y;
   }
   #storeGrid::-webkit-scrollbar { width: 8px; }
   #storeGrid::-webkit-scrollbar-track { background: #3a2413; border-radius: 4px; }
@@ -171,35 +196,71 @@
     <div class="menu-btns">
       <button class="woodBtn gold" id="btnModeLevels">🌟 وضع المستويات (<span id="savedLevelSpan">1</span>)</button>
       <button class="woodBtn" id="btnModeClassic">♾️ الوضع الكلاسيكي</button>
-      <button class="woodBtn" id="btnSettings">⚙️ الإعدادات (الأشكال والأصوات)</button>
+      <button class="woodBtn" id="btnSettings">⚙️ الإعدادات المتقدمة</button>
     </div>
   </div>
 </div>
 
 <div id="settingsModal" class="overlay hidden">
   <div class="modalBox">
-    <h2>⚙️ الإعدادات</h2>
+    <h2>⚙️ الإعدادات المتقدمة</h2>
+    
     <div class="setting-group">
-      <label>🎨 شكل البلوكات:</label>
+      <label>🎨 النمط المرئي:</label>
       <select id="themeSelect">
-        <option value="hearts">❤️🌸 قلوب وزهور (الأساسي)</option>
-        <option value="wood">🪵 خشبي (كلاسيكي)</option>
-        <option value="candy">🍬 حلوى (لامع)</option>
-        <option value="icecream">🍦 آيس كريم (باستيل)</option>
+        <option value="hearts">❤️🌸 قلوب وزهور</option>
+        <option value="wood">🪵 خشبي</option>
+        <option value="candy">🍬 حلوى</option>
+        <option value="icecream">🍦 آيس كريم</option>
         <option value="emoji">🎉 إيموجي متنوع</option>
-        <option value="animals">🐾 حيوانات فقط</option>
+        <option value="animals">🐾 حيوانات</option>
+        <option value="custom_emoji">✍️ إيموجي مخصص (اكتبه بالأسفل)</option>
+        <option value="custom_image">🖼️ صورة مخصصة (ارفعها بالأسفل)</option>
       </select>
     </div>
+
+    <div class="setting-group" id="customEmojiGroup">
+      <label>✍️ اكتب الإيموجي المخصص الخاص بك:</label>
+      <input type="text" id="customEmojiInput" placeholder="مثال: 🍎" maxlength="2">
+    </div>
+    <div class="setting-group" id="customImageGroup">
+      <label>🖼️ ارفع صورة للبلوكات (من الاستوديو):</label>
+      <input type="file" id="customImageInput" accept="image/*">
+    </div>
+
     <div class="setting-group">
       <label>🎵 الأصوات:</label>
       <select id="soundSelect">
-        <option value="classic">🎹 كلاسيكي (ديجيتال)</option>
+        <option value="classic">🎹 كلاسيكي</option>
         <option value="bubble">🫧 فقاعات المائية</option>
         <option value="marimba">🪵 خشبي / ماريمبا</option>
       </select>
     </div>
+
+    <div class="setting-group">
+      <label>📐 الأشكال المسموح ظهورها في اللعبة:</label>
+      <div class="checkbox-group" id="shapeFilters">
+        <label class="checkbox-label"><input type="checkbox" value="dot" checked> نقطة (1x1)</label>
+        <label class="checkbox-label"><input type="checkbox" value="lines" checked> خطوط مستقيمة</label>
+        <label class="checkbox-label"><input type="checkbox" value="squares" checked> مربعات</label>
+        <label class="checkbox-label"><input type="checkbox" value="l_shapes" checked> حرف L</label>
+        <label class="checkbox-label"><input type="checkbox" value="t_shapes" checked> حرف T</label>
+        <label class="checkbox-label"><input type="checkbox" value="z_shapes" checked> حرف Z</label>
+      </div>
+    </div>
+
+    <div class="setting-group">
+      <label>☁️ الحفظ السحابي (Firebase):</label>
+      <input type="text" id="fbUsername" placeholder="أدخل اسم المستخدم الخاص بك..." style="margin-bottom:8px;">
+      <div style="display:flex; gap:5px;">
+        <button class="woodBtn gold" id="btnCloudSave" style="padding:8px;">حفظ التقدم</button>
+        <button class="woodBtn" id="btnCloudLoad" style="padding:8px;">استعادة</button>
+      </div>
+      <small id="cloudStatus" style="color:#2ecc71; display:block; margin-top:5px;"></small>
+    </div>
+
     <div class="menu-btns">
-      <button class="woodBtn" id="closeSettingsBtn">✔ حفظ وإغلاق</button>
+      <button class="woodBtn" id="closeSettingsBtn">✔ حفظ التغييرات وإغلاق</button>
     </div>
   </div>
 </div>
@@ -251,26 +312,214 @@
 </div>
 
 <script>
+// ==========================================
+// حماية الشاشة من الإيماءات (لكي تبدو اللعبة كتطبيق حقيقي)
+// ==========================================
+
+// منع السحب للأعلى والأسفل (تحديث الصفحة) إلا لو كان المستخدم يمرر داخل القوائم
+document.addEventListener('touchmove', function (event) {
+    if (!event.target.closest('.modalBox') && !event.target.closest('#storeGrid')) {
+        event.preventDefault();
+    }
+}, { passive: false });
+
+// منع التكبير بإصبعين (Pinch to zoom) في أنظمة iOS
+document.addEventListener('gesturestart', function (event) {
+    event.preventDefault();
+});
+
+// منع التكبير بالنقر المزدوج (Double-tap to zoom)
+let lastTouchEnd = 0;
+document.addEventListener('touchend', function (event) {
+    let now = (new Date()).getTime();
+    if (now - lastTouchEnd <= 300) {
+        event.preventDefault();
+    }
+    lastTouchEnd = now;
+}, { passive: false });
+
+// ==========================================
+// إعدادات Firebase 
+// ==========================================
+// ==========================================
+// إعدادات Firebase وحفظ المستوى
+// ==========================================
+const firebaseConfig = {
+  apiKey: "AIzaSyDsXYQxVcpY36arvJjtDISud4wPoXoi-Ts",
+  authDomain: "block-c988a.firebaseapp.com",
+  projectId: "block-c988a",
+  storageBucket: "block-c988a.firebasestorage.app",
+  messagingSenderId: "546966143165",
+  appId: "1:546966143165:web:2725fb2d20a5419e0db7d4",
+  measurementId: "G-BQX1CZVS9R"
+};  
+
+// تهيئة قاعدة البيانات سحابياً
+let db;
+try {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+} catch (e) {
+    console.error("خطأ في الاتصال بـ Firebase:", e);
+}
+
+// ربط أزرار الحفظ والاستعادة بالوظائف البرمجية
+const btnCloudSave = document.getElementById('btnCloudSave');
+const btnCloudLoad = document.getElementById('btnCloudLoad');
+const fbUsername = document.getElementById('fbUsername');
+const cloudStatus = document.getElementById('cloudStatus');
+
+// زر حفظ التقدم (المستوى، أعلى نقاط، والنقاط الحالية)
+btnCloudSave.addEventListener('click', () => {
+    if(!db) { cloudStatus.textContent = "عذراً، قاعدة البيانات غير متصلة."; return; }
+    const user = fbUsername.value.trim();
+    if(!user) { cloudStatus.textContent = "يرجى كتابة اسم المستخدم أولاً."; return; }
+    
+    // حفظ البيانات داخل مسار خاص بالمستخدم في قاعدة البيانات
+    db.ref('users/' + user).set({
+        level: currentLevel, 
+        topScore: topScore, 
+        score: score
+    }).then(() => {
+        cloudStatus.style.color = "#2ecc71";
+        cloudStatus.textContent = "تم حفظ التقدم بنجاح! ☁️"; 
+        setTimeout(() => cloudStatus.textContent = "", 3000);
+    }).catch(err => {
+        cloudStatus.style.color = "#e74c3c";
+        cloudStatus.textContent = "فشل حفظ التقدم، تحقق من الاتصال.";
+    });
+});
+
+// زر استعادة التقدم باستخدام اسم المستخدم وكلمة المرور/الاسم
+btnCloudLoad.addEventListener('click', () => {
+    if(!db) { cloudStatus.textContent = "عذراً، قاعدة البيانات غير متصلة."; return; }
+    const user = fbUsername.value.trim();
+    if(!user) { cloudStatus.textContent = "يرجى كتابة اسم المستخدم لاستعادة الحساب."; return; }
+    
+    db.ref('users/' + user).once('value').then((snapshot) => {
+        const data = snapshot.val();
+        if(data) {
+            currentLevel = data.level || 1; 
+            topScore = data.topScore || 0; 
+            score = data.score || 0;
+            
+            // تحديث التخزين المحلي (LocalStorage) وتحديث الواجهة
+            localStorage.setItem('blockCrushLevel', currentLevel); 
+            localStorage.setItem('blockCrushTopScore', topScore);
+            savedLevelSpan.textContent = currentLevel;
+            updateScoreDisplay(); 
+            
+            cloudStatus.style.color = "#2ecc71";
+            cloudStatus.textContent = "تم استرجاع الحساب ومستوى اللعبة بنجاح! ✅"; 
+            setTimeout(() => cloudStatus.textContent = "", 3000);
+        } else {
+            cloudStatus.style.color = "#e74c3c";
+            cloudStatus.textContent = "لا توجد بيانات محفوظة لهذا الاسم.";
+        }
+    }).catch(err => {
+        cloudStatus.style.color = "#e74c3c";
+        cloudStatus.textContent = "حدث خطأ أثناء جلب البيانات.";
+    });
+});
+
 (function(){
   "use strict";
 
   let currentTheme = localStorage.getItem('blockCrushTheme') || 'hearts';
   let currentSound = localStorage.getItem('blockCrushSound') || 'classic';
+  let customEmojiChar = localStorage.getItem('blockCrushCustomEmoji') || '🍎';
+  let customImageData = localStorage.getItem('blockCrushCustomImgData') || null;
+  let activeShapeFilters = JSON.parse(localStorage.getItem('blockCrushShapeFilters')) || ['dot','lines','squares','l_shapes','t_shapes','z_shapes'];
 
   const themeSelect = document.getElementById('themeSelect');
   const soundSelect = document.getElementById('soundSelect');
+  const customEmojiInput = document.getElementById('customEmojiInput');
+  const customImageInput = document.getElementById('customImageInput');
+  
   themeSelect.value = currentTheme;
   soundSelect.value = currentSound;
+  customEmojiInput.value = customEmojiChar;
+
+  document.querySelectorAll('#shapeFilters input').forEach(checkbox => {
+      checkbox.checked = activeShapeFilters.includes(checkbox.value);
+      checkbox.addEventListener('change', updateShapeFilters);
+  });
+
+  function updateShapeFilters() {
+      activeShapeFilters = Array.from(document.querySelectorAll('#shapeFilters input:checked')).map(cb => cb.value);
+      if(activeShapeFilters.length === 0) {
+          activeShapeFilters = ['dot'];
+          document.querySelector('#shapeFilters input[value="dot"]').checked = true;
+      }
+      localStorage.setItem('blockCrushShapeFilters', JSON.stringify(activeShapeFilters));
+  }
+
+  let customImageObj = new Image();
+  if (customImageData) customImageObj.src = customImageData;
+
+  customImageInput.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) {
+          const reader = new FileReader();
+          reader.onload = function(event) {
+              customImageData = event.target.result;
+              customImageObj.src = customImageData;
+              localStorage.setItem('blockCrushCustomImgData', customImageData);
+              themeSelect.value = 'custom_image';
+              currentTheme = 'custom_image';
+              localStorage.setItem('blockCrushTheme', currentTheme);
+          };
+          reader.readAsDataURL(file);
+      }
+  });
+
+  customEmojiInput.addEventListener('input', e => {
+      customEmojiChar = e.target.value;
+      localStorage.setItem('blockCrushCustomEmoji', customEmojiChar);
+  });
 
   themeSelect.addEventListener('change', e => {
       currentTheme = e.target.value;
       localStorage.setItem('blockCrushTheme', currentTheme);
-      if (!animationFrameId) loop(); 
   });
   
   soundSelect.addEventListener('change', e => {
       currentSound = e.target.value;
       localStorage.setItem('blockCrushSound', currentSound);
+  });
+
+  const btnCloudSave = document.getElementById('btnCloudSave');
+  const btnCloudLoad = document.getElementById('btnCloudLoad');
+  const fbUsername = document.getElementById('fbUsername');
+  const cloudStatus = document.getElementById('cloudStatus');
+
+  btnCloudSave.addEventListener('click', () => {
+      if(!db) { cloudStatus.textContent = "يرجى إضافة إعدادات Firebase في الكود."; return; }
+      const user = fbUsername.value.trim();
+      if(!user) { cloudStatus.textContent = "أدخل اسم المستخدم أولاً."; return; }
+      
+      db.ref('users/' + user).set({
+          level: currentLevel, topScore: topScore, score: score
+      }).then(() => {
+          cloudStatus.textContent = "تم الحفظ بنجاح! ☁️"; setTimeout(()=> cloudStatus.textContent = "", 3000);
+      }).catch(err => cloudStatus.textContent = "خطأ في الحفظ!");
+  });
+
+  btnCloudLoad.addEventListener('click', () => {
+      if(!db) { cloudStatus.textContent = "يرجى إضافة إعدادات Firebase في الكود."; return; }
+      const user = fbUsername.value.trim();
+      if(!user) { cloudStatus.textContent = "أدخل اسم المستخدم أولاً."; return; }
+      
+      db.ref('users/' + user).once('value').then((snapshot) => {
+          const data = snapshot.val();
+          if(data) {
+              currentLevel = data.level || 1; topScore = data.topScore || 0; score = data.score || 0;
+              localStorage.setItem('blockCrushLevel', currentLevel); localStorage.setItem('blockCrushTopScore', topScore);
+              updateScoreDisplay(); cloudStatus.textContent = "تم استرجاع التقدم! ✅"; setTimeout(()=> cloudStatus.textContent = "", 3000);
+          } else {
+              cloudStatus.textContent = "لا يوجد بيانات لهذا المستخدم.";
+          }
+      });
   });
 
   let audioCtx;
@@ -283,8 +532,7 @@
     if(!audioCtx) return;
     let osc = audioCtx.createOscillator();
     let gain = audioCtx.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
     if(slideFreq) osc.frequency.exponentialRampToValueAtTime(slideFreq, audioCtx.currentTime + duration);
     gain.gain.setValueAtTime(vol, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
@@ -317,33 +565,33 @@
   const gridRows = 8, gridCols = 8;
   
   const SHAPE_TEMPLATES = [
-    { shape: [[1]], color: "#3498db", icon: "💎" },         // 0: 1x1
-    { shape: [[1,1]], color: "#e74c3c", icon: "❤️" },        // 1: 1x2
-    { shape: [[1],[1]], color: "#e74c3c", icon: "❤️" },      // 2: 2x1
-    { shape: [[1,1,1]], color: "#2ecc71", icon: "🐸" },      // 3: 1x3
-    { shape: [[1],[1],[1]], color: "#2ecc71", icon: "🐸" },  // 4: 3x1
-    { shape: [[1,1,1,1]], color: "#9b59b6", icon: "🦄" },    // 5: 1x4
-    { shape: [[1],[1],[1],[1]], color: "#9b59b6", icon: "🦄" },// 6: 4x1
-    { shape: [[1,1,1,1,1]], color: "#e84393", icon: "🌸" },  // 7: 1x5
-    { shape: [[1],[1],[1],[1],[1]], color: "#e84393", icon: "🌸" }, // 8: 5x1
-    { shape: [[1,1],[1,1]], color: "#f1c40f", icon: "⭐" },  // 9: 2x2
-    { shape: [[1,1,1],[1,1,1],[1,1,1]], color: "#e67e22", icon: "🦊" }, // 10: 3x3
-    { shape: [[1,1,1],[1,1,1]], color: "#f39c12", icon: "🐱" }, // 11: 3x2
-    { shape: [[1,1],[1,1],[1,1]], color: "#f39c12", icon: "🐱" }, // 12: 2x3
-    { shape: [[1,0],[1,1]], color: "#1abc9c", icon: "🐢" },  // 13: L صغير 
-    { shape: [[0,1],[1,1]], color: "#1abc9c", icon: "🐢" },  // 14: L صغير 
-    { shape: [[1,1],[1,0]], color: "#1abc9c", icon: "🐢" },  // 15: L صغير 
-    { shape: [[1,1],[0,1]], color: "#1abc9c", icon: "🐢" },  // 16: L صغير 
-    { shape: [[1,0,0],[1,0,0],[1,1,1]], color: "#34495e", icon: "⚓" }, // 17: L كبير
-    { shape: [[0,0,1],[0,0,1],[1,1,1]], color: "#34495e", icon: "⚓" }, // 18: L كبير
-    { shape: [[1,1,1],[1,0,0],[1,0,0]], color: "#34495e", icon: "⚓" }, // 19: L كبير
-    { shape: [[1,1,1],[0,0,1],[0,0,1]], color: "#34495e", icon: "⚓" }, // 20: L كبير
-    { shape: [[0,1,0],[1,1,1]], color: "#d35400", icon: "🍄" }, // 21: T أعلى
-    { shape: [[1,1,1],[0,1,0]], color: "#d35400", icon: "🍄" }, // 22: T أسفل
-    { shape: [[1,0],[1,1],[1,0]], color: "#d35400", icon: "🍄" }, // 23: T يسار
-    { shape: [[0,1],[1,1],[0,1]], color: "#d35400", icon: "🍄" }, // 24: T يمين
-    { shape: [[1,1,0],[0,1,1]], color: "#8e44ad", icon: "👾" }, // 25: Z 1
-    { shape: [[0,1,1],[1,1,0]], color: "#8e44ad", icon: "👾" }  // 26: Z 2
+    { shape: [[1]], color: "#3498db", icon: "💎", cat: "dot" },
+    { shape: [[1,1]], color: "#e74c3c", icon: "❤️", cat: "lines" },
+    { shape: [[1],[1]], color: "#e74c3c", icon: "❤️", cat: "lines" },
+    { shape: [[1,1,1]], color: "#2ecc71", icon: "🐸", cat: "lines" },
+    { shape: [[1],[1],[1]], color: "#2ecc71", icon: "🐸", cat: "lines" },
+    { shape: [[1,1,1,1]], color: "#9b59b6", icon: "🦄", cat: "lines" },
+    { shape: [[1],[1],[1],[1]], color: "#9b59b6", icon: "🦄", cat: "lines" },
+    { shape: [[1,1,1,1,1]], color: "#e84393", icon: "🌸", cat: "lines" },
+    { shape: [[1],[1],[1],[1],[1]], color: "#e84393", icon: "🌸", cat: "lines" },
+    { shape: [[1,1],[1,1]], color: "#f1c40f", icon: "⭐", cat: "squares" },
+    { shape: [[1,1,1],[1,1,1],[1,1,1]], color: "#e67e22", icon: "🦊", cat: "squares" },
+    { shape: [[1,1,1],[1,1,1]], color: "#f39c12", icon: "🐱", cat: "squares" },
+    { shape: [[1,1],[1,1],[1,1]], color: "#f39c12", icon: "🐱", cat: "squares" },
+    { shape: [[1,0],[1,1]], color: "#1abc9c", icon: "🐢", cat: "l_shapes" },
+    { shape: [[0,1],[1,1]], color: "#1abc9c", icon: "🐢", cat: "l_shapes" },
+    { shape: [[1,1],[1,0]], color: "#1abc9c", icon: "🐢", cat: "l_shapes" },
+    { shape: [[1,1],[0,1]], color: "#1abc9c", icon: "🐢", cat: "l_shapes" },
+    { shape: [[1,0,0],[1,0,0],[1,1,1]], color: "#34495e", icon: "⚓", cat: "l_shapes" },
+    { shape: [[0,0,1],[0,0,1],[1,1,1]], color: "#34495e", icon: "⚓", cat: "l_shapes" },
+    { shape: [[1,1,1],[1,0,0],[1,0,0]], color: "#34495e", icon: "⚓", cat: "l_shapes" },
+    { shape: [[1,1,1],[0,0,1],[0,0,1]], color: "#34495e", icon: "⚓", cat: "l_shapes" },
+    { shape: [[0,1,0],[1,1,1]], color: "#d35400", icon: "🍄", cat: "t_shapes" },
+    { shape: [[1,1,1],[0,1,0]], color: "#d35400", icon: "🍄", cat: "t_shapes" },
+    { shape: [[1,0],[1,1],[1,0]], color: "#d35400", icon: "🍄", cat: "t_shapes" },
+    { shape: [[0,1],[1,1],[0,1]], color: "#d35400", icon: "🍄", cat: "t_shapes" },
+    { shape: [[1,1,0],[0,1,1]], color: "#8e44ad", icon: "👾", cat: "z_shapes" },
+    { shape: [[0,1,1],[1,1,0]], color: "#8e44ad", icon: "👾", cat: "z_shapes" }
   ];
 
   const ANIMALS_ICONS = ["🐭","🐰","🐰","🐸","🐸","🦄","🦄","🐼","🐼","🦊","🦁","🐯","🐯","🐢","🐢","🐢","🐢","🐻","🐻","🐻","🐻","🐒","🐒","🐒","🐒","🐙","🐙"];
@@ -352,6 +600,7 @@
 
   function getIconForTheme(idx) {
     if (idx === undefined || idx === null) return "";
+    if (currentTheme === 'custom_emoji') return customEmojiChar || "";
     if (currentTheme === 'animals') return ANIMALS_ICONS[idx] || "";
     if (currentTheme === 'hearts') return HEARTS_FLOWERS_ICONS[idx] || "";
     if (currentTheme === 'emoji') return EMOJI_ICONS[idx] || "";
@@ -394,16 +643,9 @@
   let animationFrameId;
   let activeBooster = null; 
 
-  // ==========================================
-  // النظام الذكي المحدث
-  // ==========================================
   function getOccupiedCount() {
       let count = 0;
-      for (let r=0; r<gridRows; r++) {
-          for (let c=0; c<gridCols; c++) {
-              if (occupied[r][c] !== null) count++;
-          }
-      }
+      for (let r=0; r<gridRows; r++) for (let c=0; c<gridCols; c++) if (occupied[r][c] !== null) count++;
       return count; 
   }
 
@@ -453,15 +695,15 @@
       let occupancy = getOccupiedCount() / (gridRows * gridCols);
 
       for (let i = 0; i < SHAPE_TEMPLATES.length; i++) {
+          if(!activeShapeFilters.includes(SHAPE_TEMPLATES[i].cat)) continue;
+          
           let fits = canFit(i);
           let score = 0;
           let pieceBlocks = SHAPE_TEMPLATES[i].shape.flat().filter(x => x === 1).length;
 
           if (fits) {
               score += 10; 
-              if (simulatesLineClear(i)) {
-                  score += 60; 
-              }
+              if (simulatesLineClear(i)) score += 60; 
               if (occupancy > 0.65) {
                   if (pieceBlocks <= 3) score += 30; 
                   if (pieceBlocks >= 5) score -= 8;  
@@ -472,6 +714,8 @@
           candidates.push({ idx: i, score: Math.max(1, score) });
       }
 
+      if(candidates.length === 0) candidates.push({ idx: 0, score: 10 });
+
       let trayIndices = [];
       for (let k = 0; k < 3; k++) {
           let totalScore = candidates.reduce((sum, c) => sum + c.score, 0);
@@ -479,10 +723,7 @@
           let current = 0;
           for (let c of candidates) {
               current += c.score;
-              if (roll <= current) {
-                  trayIndices.push(c.idx);
-                  break;
-              }
+              if (roll <= current) { trayIndices.push(c.idx); break; }
           }
       }
 
@@ -506,7 +747,6 @@
       }
       layoutTrayPositions(); checkGameOver();
   }
-  // ==========================================
 
   savedLevelSpan.textContent = currentLevel;
   topScoreLabel.textContent = `${topScore} 🪙`;
@@ -515,6 +755,7 @@
       const storeGrid = document.getElementById('storeGrid');
       storeGrid.innerHTML = '';
       SHAPE_TEMPLATES.forEach((template, index) => {
+          if(!activeShapeFilters.includes(template.cat)) return;
           const btn = document.createElement('div');
           btn.style.cssText = `cursor:pointer; padding:8px; background:#2f2015; border-radius:8px; display:grid; gap:2px; border:2px solid transparent;`;
           btn.style.gridTemplateRows = `repeat(${template.shape.length}, 16px)`;
@@ -532,7 +773,6 @@
           storeGrid.appendChild(btn);
       });
   }
-  initStoreUI();
 
   function purchaseBlock(index) {
       if (score < 150) return;
@@ -541,16 +781,11 @@
       if (!targetPiece) { generateTrayPieces(); targetPiece = pieces.find(p => !p.placed); }
       if (targetPiece) {
           Object.assign(targetPiece, {
-              shape: SHAPE_TEMPLATES[index].shape,
-              rows: SHAPE_TEMPLATES[index].shape.length,
-              cols: SHAPE_TEMPLATES[index].shape[0].length,
-              color: SHAPE_TEMPLATES[index].color,
-              templateIndex: index
+              shape: SHAPE_TEMPLATES[index].shape, rows: SHAPE_TEMPLATES[index].shape.length, cols: SHAPE_TEMPLATES[index].shape[0].length, color: SHAPE_TEMPLATES[index].color, templateIndex: index
           });
           layoutTrayPositions();
       }
-      document.getElementById('storeModal').classList.add('hidden');
-      checkGameOver();
+      document.getElementById('storeModal').classList.add('hidden'); checkGameOver();
   }
 
   function initGame(mode){
@@ -566,33 +801,20 @@
   }
 
   function updateScoreDisplay() {
-      if(gameMode === 'levels') {
-          scoreLabel.innerHTML = `${score} / ${currentLevel * 100} 🪙`;
-      } else {
-          scoreLabel.innerHTML = `${score} 🪙`;
-      }
-      if(score > topScore) {
-          topScore = score;
-          localStorage.setItem('blockCrushTopScore', topScore);
-          topScoreLabel.innerHTML = `${topScore} 🪙`;
-      }
+      if(gameMode === 'levels') { scoreLabel.innerHTML = `${score} / ${currentLevel * 100} 🪙`; } 
+      else { scoreLabel.innerHTML = `${score} 🪙`; }
+      if(score > topScore) { topScore = score; localStorage.setItem('blockCrushTopScore', topScore); topScoreLabel.innerHTML = `${topScore} 🪙`; }
   }
 
   function updateButtonsState() {
       undoBtn.classList.toggle('disabled', (!previousState || previousState.score < 100));
-      topBuyBtn.classList.toggle('disabled', (score < 150));
-      storeStatusLabel.style.color = (score >= 150) ? '#2ecc71' : '#fff3e0';
+      topBuyBtn.classList.toggle('disabled', (score < 150)); storeStatusLabel.style.color = (score >= 150) ? '#2ecc71' : '#fff3e0';
       btnRotate.classList.toggle('disabled', score < 30);
-      btnBomb.classList.toggle('disabled', score < 100 && activeBooster !== 'bomb');
-      btnBomb.classList.toggle('booster-active', activeBooster === 'bomb');
+      btnBomb.classList.toggle('disabled', score < 100 && activeBooster !== 'bomb'); btnBomb.classList.toggle('booster-active', activeBooster === 'bomb');
   }
 
   function toggleBooster(type, cost) {
-      if (activeBooster === type) {
-          activeBooster = null;
-      } else if (score >= cost) {
-          activeBooster = type;
-      }
+      if (activeBooster === type) { activeBooster = null; } else if (score >= cost) { activeBooster = type; }
       updateButtonsState();
   }
 
@@ -603,14 +825,8 @@
           score -= 30; playSound('buy');
           pieces.filter(p => !p.placed).forEach(p => {
               let newShape = Array.from({length: p.cols}, () => Array(p.rows).fill(0));
-              for(let r=0; r<p.rows; r++) {
-                  for(let c=0; c<p.cols; c++) {
-                      newShape[c][p.rows - 1 - r] = p.shape[r][c];
-                  }
-              }
-              p.shape = newShape;
-              p.rows = p.shape.length;
-              p.cols = p.shape[0].length;
+              for(let r=0; r<p.rows; r++) for(let c=0; c<p.cols; c++) newShape[c][p.rows - 1 - r] = p.shape[r][c];
+              p.shape = newShape; p.rows = p.shape.length; p.cols = p.shape[0].length;
           });
           layoutTrayPositions(); updateScoreDisplay(); updateButtonsState(); checkGameOver();
       }
@@ -642,8 +858,7 @@
 
   function resizeCanvas(){
     const dpr = window.devicePixelRatio || 1;
-    logicalWidth = Math.min(canvasWrap.clientWidth, 640);
-    if (logicalWidth < 280) logicalWidth = 280;
+    logicalWidth = Math.min(canvasWrap.clientWidth, 640); if (logicalWidth < 280) logicalWidth = 280;
     computeLayout();
     canvas.width = Math.round(logicalWidth*dpr); canvas.height = Math.round(logicalHeight*dpr);
     canvas.style.width = logicalWidth+"px"; canvas.style.height = logicalHeight+"px";
@@ -658,6 +873,13 @@
 
   function drawBlockCell(px, py, size, color, alpha = 1, icon = ""){
     const pad = 1.5; ctx.save(); ctx.globalAlpha = alpha;
+    
+    if(currentTheme === 'custom_image' && customImageData) {
+        ctx.beginPath(); roundRect(px+pad, py+pad, size-pad*2, size-pad*2, size*0.16); ctx.closePath(); ctx.clip();
+        try { ctx.drawImage(customImageObj, px+pad, py+pad, size-pad*2, size-pad*2); } catch(e){}
+        ctx.lineWidth = 1; ctx.strokeStyle = "#00000033"; ctx.stroke(); ctx.restore(); return;
+    }
+
     if (currentTheme === 'candy') {
         roundRect(px+pad, py+pad, size-pad*2, size-pad*2, size*0.4); ctx.fillStyle = color; ctx.fill();
         ctx.globalAlpha = alpha * 0.6; roundRect(px+pad*2, py+pad*2, size-pad*4, (size-pad*4)*0.4, size*0.3); ctx.fillStyle = "#fff"; ctx.fill();
@@ -714,9 +936,7 @@
     for(let r=0;r<p.rows;r++) for(let c=0;c<p.cols;c++) if(p.shape[r][c]===1) drawBlockCell(p.x+c*s, p.y+r*s, s, p.color, alpha, icon);
   }
 
-  function spawnCoins(x, y) {
-      for(let i=0; i<5; i++) particles.push({x: x+cellSize/2, y: y+cellSize/2, vx: (Math.random()-0.5)*8, vy: (Math.random()-1)*8-2, life: 1.0, type: 'coin'});
-  }
+  function spawnCoins(x, y) { for(let i=0; i<5; i++) particles.push({x: x+cellSize/2, y: y+cellSize/2, vx: (Math.random()-0.5)*8, vy: (Math.random()-1)*8-2, life: 1.0, type: 'coin'}); }
   function updateAndDrawParticles() {
       for (let i = particles.length - 1; i >= 0; i--) {
           let p = particles[i]; p.x += p.vx; p.y += p.vy; p.vy += 0.4; p.life -= 0.03;
@@ -730,27 +950,17 @@
   }
 
   function loop() {
-    ctx.clearRect(0,0,logicalWidth,logicalHeight);
-    drawGridPanel();
+    ctx.clearRect(0,0,logicalWidth,logicalHeight); drawGridPanel();
     
     if (activeBooster) {
-        ctx.save();
-        ctx.fillStyle = "rgba(231, 76, 60, 0.15)";
-        roundRect(gridOriginX, gridOriginY, gridCols*cellSize, gridRows*cellSize, 14);
-        ctx.fill();
-        ctx.fillStyle = "#ff7675"; ctx.font = "bold 16px 'Segoe UI'"; ctx.textAlign = "center";
-        let msg = "💣 انقر على منطقة لتفجيرها";
-        ctx.fillText(msg, logicalWidth/2, gridOriginY - 12);
-        ctx.restore();
+        ctx.save(); ctx.fillStyle = "rgba(231, 76, 60, 0.15)";
+        roundRect(gridOriginX, gridOriginY, gridCols*cellSize, gridRows*cellSize, 14); ctx.fill();
+        ctx.fillStyle = "#ff7675"; ctx.font = "bold 16px 'Segoe UI'"; ctx.textAlign = "center"; ctx.fillText("💣 انقر على منطقة لتفجيرها", logicalWidth/2, gridOriginY - 12); ctx.restore();
     }
 
     if (dragPiece) drawDropPreview();
-    pieces.forEach(p => { 
-        if (!p.placed && p !== dragPiece) drawPiece(p, 1, animating.has(p.id) ? p.animSize : trayCellSize);
-    });
-    if (dragPiece) drawPiece(dragPiece, 0.95, cellSize);
-    updateAndDrawParticles();
-    animationFrameId = requestAnimationFrame(loop);
+    pieces.forEach(p => { if (!p.placed && p !== dragPiece) drawPiece(p, 1, animating.has(p.id) ? p.animSize : trayCellSize); });
+    if (dragPiece) drawPiece(dragPiece, 0.95, cellSize); updateAndDrawParticles(); animationFrameId = requestAnimationFrame(loop);
   }
 
   function isValidPlacement(piece, row, col){
@@ -763,20 +973,14 @@
   }
 
   function saveState() {
-      previousState = {
-          occupied: occupied.map(row => row.map(cell => cell ? {...cell} : null)),
-          pieces: JSON.parse(JSON.stringify(pieces)),
-          score: score, currentLevel: currentLevel
-      };
+      previousState = { occupied: occupied.map(row => row.map(cell => cell ? {...cell} : null)), pieces: JSON.parse(JSON.stringify(pieces)), score: score, currentLevel: currentLevel };
   }
 
   function placePiece(piece, r, c){
     saveState(); playSound('place');
     for(let i=0;i<piece.rows;i++) for(let j=0;j<piece.cols;j++) if(piece.shape[i][j]===1) occupied[r+i][c+j] = {color: piece.color, templateIndex: piece.templateIndex};
-    piece.placed = true;
-    checkLines();
-    if(pieces.every(p => p.placed)) { pieces = []; generateTrayPieces(); } else { checkGameOver(); }
-    updateButtonsState();
+    piece.placed = true; checkLines();
+    if(pieces.every(p => p.placed)) { pieces = []; generateTrayPieces(); } else { checkGameOver(); } updateButtonsState();
   }
 
   function checkLines() {
@@ -787,17 +991,11 @@
       const hasCrush = rowsToClear.length > 0 || colsToClear.length > 0;
       if(hasCrush) playSound('crush');
 
-      function clearCell(r, c) {
-          const px = gridOriginX+c*cellSize, py = gridOriginY+r*cellSize;
-          spawnCoins(px, py);
-          occupied[r][c] = null; score += 10;
-      }
+      function clearCell(r, c) { const px = gridOriginX+c*cellSize, py = gridOriginY+r*cellSize; spawnCoins(px, py); occupied[r][c] = null; score += 10; }
       rowsToClear.forEach(r => { for(let c=0; c<gridCols; c++) clearCell(r, c); });
       colsToClear.forEach(c => { for(let r=0; r<gridRows; r++) if(occupied[r][c]) clearCell(r, c); });
 
-      if(hasCrush) {
-          updateScoreDisplay(); updateButtonsState(); checkLevelProgress();
-      }
+      if(hasCrush) { updateScoreDisplay(); updateButtonsState(); checkLevelProgress(); }
   }
 
   function checkLevelProgress() {
@@ -810,12 +1008,9 @@
   }
 
   function checkGameOver() {
-      let canPlaceAny = pieces.filter(p=>!p.placed).some(p => {
-          for(let r=0; r<gridRows; r++) for(let c=0; c<gridCols; c++) if(isValidPlacement(p, r, c)) return true; return false;
-      });
+      let canPlaceAny = pieces.filter(p=>!p.placed).some(p => { for(let r=0; r<gridRows; r++) for(let c=0; c<gridCols; c++) if(isValidPlacement(p, r, c)) return true; return false; });
       if(!canPlaceAny) {
-          document.getElementById('modalTitle').textContent = "انتهت اللعبة";
-          document.getElementById('modalText').textContent = `لا توجد حركات ممكنة. لقد جمعت ${score} 🪙!`;
+          document.getElementById('modalTitle').textContent = "انتهت اللعبة"; document.getElementById('modalText').textContent = `لا توجد حركات ممكنة. لقد جمعت ${score} 🪙!`;
           document.getElementById('modalNextBtn').style.display = 'none'; document.getElementById('gameOverModal').classList.remove('hidden');
       }
   }
@@ -825,8 +1020,7 @@
       playSound('undo');
       occupied = previousState.occupied.map(r => r.map(c => c ? {...c} : null)); pieces = JSON.parse(JSON.stringify(previousState.pieces));
       score = previousState.score - 100; currentLevel = previousState.currentLevel; previousState = null; 
-      layoutTrayPositions(); updateScoreDisplay(); updateButtonsState();
-      document.getElementById('gameOverModal').classList.add('hidden');
+      layoutTrayPositions(); updateScoreDisplay(); updateButtonsState(); document.getElementById('gameOverModal').classList.add('hidden');
   }
 
   function animatePieceTo(piece, tx, ty, dur){
@@ -841,8 +1035,7 @@
   }
 
   function getCanvasCoords(evt){
-    const rect = canvas.getBoundingClientRect();
-    return { x: (evt.clientX - rect.left) * (logicalWidth / rect.width), y: (evt.clientY - rect.top) * (logicalHeight / rect.height) };
+    const rect = canvas.getBoundingClientRect(); return { x: (evt.clientX - rect.left) * (logicalWidth / rect.width), y: (evt.clientY - rect.top) * (logicalHeight / rect.height) };
   }
 
   function onPointerDown(evt){
@@ -850,17 +1043,13 @@
     const {x,y} = getCanvasCoords(evt);
     
     if (activeBooster) {
-        const col = Math.floor((x - gridOriginX) / cellSize);
-        const row = Math.floor((y - gridOriginY) / cellSize);
+        const col = Math.floor((x - gridOriginX) / cellSize); const row = Math.floor((y - gridOriginY) / cellSize);
         if (row >= 0 && row < gridRows && col >= 0 && col < gridCols) {
             if (activeBooster === 'bomb') {
                 let cleared = false;
                 for (let r = Math.max(0, row - 1); r <= Math.min(gridRows - 1, row + 1); r++) {
                     for (let c = Math.max(0, col - 1); c <= Math.min(gridCols - 1, col + 1); c++) {
-                        if (occupied[r][c]) {
-                            occupied[r][c] = null;
-                            spawnCoins(gridOriginX + c * cellSize, gridOriginY + r * cellSize); cleared = true;
-                        }
+                        if (occupied[r][c]) { occupied[r][c] = null; spawnCoins(gridOriginX + c * cellSize, gridOriginY + r * cellSize); cleared = true; }
                     }
                 }
                 if (cleared) { playSound('bomb'); score -= 100; activeBooster = null; }
@@ -874,28 +1063,20 @@
     for (let p of pieces) {
         if (p.placed || animating.has(p.id)) continue;
         const w = p.cols * trayCellSize, h = p.rows * trayCellSize;
-        if (x >= p.x-30 && x <= p.x+w+30 && y >= p.y-30 && y <= p.y+h+30) {
-            const d = Math.hypot(x - (p.x+w/2), y - (p.y+h/2));
-            if (d < best) { best = d; hit = p; }
-        }
+        if (x >= p.x-30 && x <= p.x+w+30 && y >= p.y-30 && y <= p.y+h+30) { const d = Math.hypot(x - (p.x+w/2), y - (p.y+h/2)); if (d < best) { best = d; hit = p; } }
     }
     if (!hit) return;
     
-    playSound('drag'); dragPiece = hit;
-    dragOffsetX = (hit.cols * cellSize) / 2; dragOffsetY = (hit.rows * cellSize) + 40; 
-    dragPiece.x = x - dragOffsetX; dragPiece.y = y - dragOffsetY;
-    canvas.setPointerCapture(evt.pointerId);
+    playSound('drag'); dragPiece = hit; dragOffsetX = (hit.cols * cellSize) / 2; dragOffsetY = (hit.rows * cellSize) + 40; 
+    dragPiece.x = x - dragOffsetX; dragPiece.y = y - dragOffsetY; canvas.setPointerCapture(evt.pointerId);
   }
 
   function onPointerMove(evt){
-    if (!dragPiece) return;
-    const {x,y} = getCanvasCoords(evt);
-    dragPiece.x = x - dragOffsetX; dragPiece.y = y - dragOffsetY;
+    if (!dragPiece) return; const {x,y} = getCanvasCoords(evt); dragPiece.x = x - dragOffsetX; dragPiece.y = y - dragOffsetY;
   }
 
   function onPointerUp(){
-    if (!dragPiece) return;
-    const p = dragPiece; dragPiece = null;
+    if (!dragPiece) return; const p = dragPiece; dragPiece = null;
     const tCol = Math.round((p.x - gridOriginX)/cellSize), tRow = Math.round((p.y - gridOriginY)/cellSize);
     if (isValidPlacement(p, tRow, tCol)) placePiece(p, tRow, tCol); else animatePieceTo(p, p.trayX, p.trayY, 200);
   }
@@ -907,7 +1088,10 @@
   document.getElementById('btnModeClassic').addEventListener('click', () => initGame('classic'));
   document.getElementById('undoBtn').addEventListener('click', undoMove);
   topMenuBtn.addEventListener('click', () => document.getElementById('mainMenu').classList.remove('hidden'));
-  document.getElementById('btnSettings').addEventListener('click', () => document.getElementById('settingsModal').classList.remove('hidden'));
+  document.getElementById('btnSettings').addEventListener('click', () => {
+      document.getElementById('settingsModal').classList.remove('hidden');
+      if(currentTheme === 'custom_emoji' || currentTheme === 'custom_image') { themeSelect.value = currentTheme; }
+  });
   document.getElementById('closeSettingsBtn').addEventListener('click', () => document.getElementById('settingsModal').classList.add('hidden'));
   
   topBuyBtn.addEventListener('click', () => { if (score >= 150) { initStoreUI(); document.getElementById('storeModal').classList.remove('hidden'); } });
