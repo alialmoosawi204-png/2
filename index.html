@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Block Crush — Boosters & Difficulty Edition</title>
+<title>Block Crush — Pro Visuals Edition</title>
 <style>
   :root{
     --wood-dark:#5c3a21;
@@ -40,6 +40,8 @@
     align-items: center;
     gap: 8px;
     margin-bottom:10px;
+    position: relative;
+    z-index: 10;
   }
   .stats-row {
     display: flex;
@@ -59,10 +61,19 @@
     font-size:clamp(11px,3vw,14px);
     font-weight: bold;
     color: #ffd700;
+    transition: transform 0.2s ease;
   }
   .stat-box span { display: block; font-size: 0.8em; color: #fff3e0; margin-bottom: 4px;}
   .clickable-stat { cursor: pointer; transition: all 0.2s; background: linear-gradient(180deg, var(--wood-mid), var(--panel)); }
   .clickable-stat:active { transform: translateY(2px); }
+
+  /* أنيميشن نبض الهدف */
+  @keyframes goalPulse { 
+      0% { transform: scale(1); } 
+      50% { transform: scale(1.15); box-shadow: 0 0 15px var(--accent); border-color: #fff; } 
+      100% { transform: scale(1); } 
+  }
+  .pulse-anim { animation: goalPulse 0.4s ease-out; }
 
   #canvasWrap{
     width:100%;
@@ -74,6 +85,7 @@
     padding:6px;
     touch-action:none;
     position: relative;
+    z-index: 1;
   }
   canvas{
     display:block;
@@ -126,7 +138,6 @@
       filter: grayscale(100%);
   }
 
-  /* القوائم والنوافذ المنبثقة */
   .overlay{
     position:fixed; inset:0; background:rgba(20,12,6,.85);
     display:flex; align-items:center; justify-content:center;
@@ -150,7 +161,6 @@
   .modalBox p{ margin:0 0 20px; font-size:16px; line-height: 1.5; }
   .menu-btns { display: flex; flex-direction: column; gap: 15px; }
 
-  /* تنسيق الإعدادات */
   .setting-group { margin-bottom: 15px; text-align: right; }
   .setting-group label { display: block; margin-bottom: 5px; color: #ffd700; font-weight: bold; }
   .setting-group select { width: 100%; padding: 8px; border-radius: 8px; background: #2a1c11; color: #fff; border: 2px solid var(--accent-dark); font-family: inherit; font-size: 16px;}
@@ -184,11 +194,11 @@
     <div class="setting-group">
       <label>🎨 شكل البلوكات:</label>
       <select id="themeSelect">
+        <option value="hearts">❤️🌸 قلوب وزهور (الأساسي)</option>
         <option value="wood">🪵 خشبي (كلاسيكي)</option>
         <option value="candy">🍬 حلوى (لامع)</option>
         <option value="icecream">🍦 آيس كريم (باستيل)</option>
         <option value="emoji">🎉 إيموجي متنوع</option>
-        <option value="hearts">❤️🌸 قلوب وزهور</option>
         <option value="animals">🐾 حيوانات فقط</option>
       </select>
     </div>
@@ -232,7 +242,8 @@
 <div id="app">
   <header>
     <div class="stats-row">
-      <div class="stat-box"><span>أعلى نقطة 🏆</span><div id="topScoreLabel">0 🪙</div></div>
+      <div class="stat-box hidden" id="goalBox"><span>الهدف 🎯</span><div id="goalLabel">0 / 0</div></div>
+      <div class="stat-box" id="topScoreBox"><span>أعلى نقطة 🏆</span><div id="topScoreLabel">0 🪙</div></div>
       <div class="stat-box"><span>النقود 🪙</span><div id="scoreLabel">0 🪙</div></div>
       <div class="stat-box clickable-stat" id="topBuyBtn"><span>المتجر 🛒</span><div id="storeStatusLabel">150 🪙</div></div>
       <div class="stat-box clickable-stat" id="topMenuBtn"><span>القائمة ☰</span><div>الرئيسية</div></div>
@@ -256,13 +267,26 @@
 (function(){
   "use strict";
 
-  // إعدادات المظهر
-  let currentTheme = 'wood';
-  let currentSound = 'classic';
-  document.getElementById('themeSelect').addEventListener('change', e => currentTheme = e.target.value);
-  document.getElementById('soundSelect').addEventListener('change', e => currentSound = e.target.value);
+  let currentTheme = localStorage.getItem('blockCrushTheme') || 'hearts';
+  let currentSound = localStorage.getItem('blockCrushSound') || 'classic';
 
-  // نظام الصوتيات
+  const themeSelect = document.getElementById('themeSelect');
+  const soundSelect = document.getElementById('soundSelect');
+  themeSelect.value = currentTheme;
+  soundSelect.value = currentSound;
+
+  themeSelect.addEventListener('change', e => {
+      currentTheme = e.target.value;
+      localStorage.setItem('blockCrushTheme', currentTheme);
+      if (gameMode === 'levels') setLevelTargetIcon(); // تحديث هدف المستوى فوراً
+      if (!animationFrameId) loop(); 
+  });
+  
+  soundSelect.addEventListener('change', e => {
+      currentSound = e.target.value;
+      localStorage.setItem('blockCrushSound', currentSound);
+  });
+
   let audioCtx;
   function initAudio() {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -301,29 +325,41 @@
     else if (type === 'win') { playTone(400, 'sine', 0.1, 0.2); setTimeout(()=>playTone(600, 'sine', 0.1, 0.2), 100); setTimeout(()=>playTone(800, 'sine', 0.3, 0.2), 200); }
     else if (type === 'buy') { playTone(600, 'square', 0.1, 0.2); setTimeout(()=>playTone(900, 'square', 0.15, 0.2), 100); }
     else if (type === 'bomb') { playTone(100, 'sawtooth', 0.4, 0.5, 50); setTimeout(()=>playTone(200, 'square', 0.3, 0.4), 100); }
+    else if (type === 'pop') { playTone(800, 'sine', 0.05, 0.2, 1200); } // صوت مخصص عند وصول الطائر للهدف
   }
   document.body.addEventListener('pointerdown', initAudio, {once:true});
 
   const gridRows = 8, gridCols = 8;
   const SHAPE_TEMPLATES = [
-    { shape: [[1]], color: "#3498db", icon: "💎" },
-    { shape: [[1,1]], color: "#e74c3c", icon: "❤️" },
-    { shape: [[1],[1]], color: "#e74c3c", icon: "❤️" },
-    { shape: [[1,1,1]], color: "#2ecc71", icon: "🐸" },
-    { shape: [[1],[1],[1]], color: "#2ecc71", icon: "🐸" },
-    { shape: [[1,1,1,1]], color: "#9b59b6", icon: "🦄" },
-    { shape: [[1],[1],[1],[1]], color: "#9b59b6", icon: "🦄" },
-    { shape: [[1,1],[1,1]], color: "#f1c40f", icon: "⭐" },
-    { shape: [[1,1,1],[1,1,1],[1,1,1]], color: "#e67e22", icon: "🦊" },
-    { shape: [[1,0],[1,1]], color: "#1abc9c", icon: "🐢" },
-    { shape: [[0,1],[1,1]], color: "#1abc9c", icon: "🐢" },
-    { shape: [[1,1],[1,0]], color: "#1abc9c", icon: "🐢" },
-    { shape: [[1,1],[0,1]], color: "#1abc9c", icon: "🐢" },
-    { shape: [[1,0,0],[1,0,0],[1,1,1]], color: "#e84393", icon: "🐷" },
-    { shape: [[1,0],[1,0],[1,1]], color: "#34495e", icon: "⚓" }, 
-    { shape: [[0,1],[0,1],[1,1]], color: "#34495e", icon: "⚓" }, 
-    { shape: [[1,1,1],[1,0,0]], color: "#34495e", icon: "⚓" }, 
-    { shape: [[1,1,1],[0,0,1]], color: "#34495e", icon: "⚓" }  
+    // 1 - الخطوط المستقيمة (الأطوال 4 و 5 كما في الصور 3، 4، 5، 8)
+    { shape: [[1,1,1,1]], color: "#ff6b6b", icon: "💎" },
+    { shape: [[1],[1],[1],[1]], color: "#4fa8e0", icon: "❤️" },
+    { shape: [[1,1,1,1,1]], color: "#ff6b6b", icon: "❤️" },
+    { shape: [[1],[1],[1],[1],[1]], color: "#ffb142", icon: "🐸" },
+
+    // 2 - المربعات (2x2 و 3x3 كما في الصور 1 و 6)
+    { shape: [[1,1],[1,1]], color: "#4fa8e0", icon: "🐸" },
+    { shape: [[1,1,1],[1,1,1],[1,1,1]], color: "#4fa8e0", icon: "🦄" },
+
+    // 3 - المستطيل (2x3 كما في الصورة 3)
+    { shape: [[1,1,1],[1,1,1]], color: "#ffb142", icon: "🦄" },
+
+    // 4 - أشكال حرف T مسبقة الدوران (كما في الصور 1، 2، 6، 7، 8)
+    { shape: [[1,1,1],[0,1,0]], color: "#4fa8e0", icon: "⭐" },
+    { shape: [[0,1,0],[1,1,1]], color: "#ff6b6b", icon: "🦊" },
+    { shape: [[1,0],[1,1],[1,0]], color: "#ffb142", icon: "🐢" },
+    { shape: [[0,1],[1,1],[0,1]], color: "#ff6b6b", icon: "🐢" },
+
+    // 5 - أشكال حرف L بحالات دوران مختلفة (كما في الصور 2، 4، 6، 7، 8)
+    { shape: [[1,0,0],[1,1,1]], color: "#4fa8e0", icon: "🐢" },
+    { shape: [[0,0,1],[1,1,1]], color: "#ffb142", icon: "🐢" },
+    { shape: [[1,1,1],[1,0,0]], color: "#4fa8e0", icon: "🐷" },
+    { shape: [[0,1],[0,1],[1,1]], color: "#4fa8e0", icon: "⚓" },
+    { shape: [[1,0],[1,0],[1,1]], color: "#4fa8e0", icon: "⚓" },
+
+    // 6 - حرف L الكبير ذو زاوية 3x3 وشكل Z (كما في الصور 5 و 7)
+    { shape: [[1,0,0],[1,0,0],[1,1,1]], color: "#ff6b6b", icon: "⚓" },
+    { shape: [[1,1,0],[0,1,1]], color: "#ffb142", icon: "⚓" }
   ];
 
   const ANIMALS_ICONS = ["🐭","🐰","🐰","🐸","🐸","🦄","🦄","🐼","🦊","🐢","🐢","🐢","🐢","🐷","🐨","🐨","🐨","🐨"];
@@ -342,10 +378,13 @@
   const ctx = canvas.getContext('2d');
   const canvasWrap = document.getElementById('canvasWrap');
   
-  // UI Elements
   const scoreLabel = document.getElementById('scoreLabel');
   const topScoreLabel = document.getElementById('topScoreLabel');
+  const goalLabel = document.getElementById('goalLabel');
+  const topScoreBox = document.getElementById('topScoreBox');
+  const goalBox = document.getElementById('goalBox');
   const savedLevelSpan = document.getElementById('savedLevelSpan');
+  
   const undoBtn = document.getElementById('undoBtn');
   const topBuyBtn = document.getElementById('topBuyBtn');
   const storeStatusLabel = document.getElementById('storeStatusLabel');
@@ -353,11 +392,14 @@
   const btnRotate = document.getElementById('btnRotate');
   const btnBomb = document.getElementById('btnBomb');
 
-  // State
   let gameMode = 'classic';
   let currentLevel = parseInt(localStorage.getItem('blockCrushLevel')) || 1;
   let topScore = parseInt(localStorage.getItem('blockCrushTopScore')) || 0;
   
+  let levelProgress = 0;
+  let levelTarget = 0;
+  let activeTargetIcon = "";
+
   let logicalWidth = 600, logicalHeight = 700;
   let cellSize = 40, trayCellSize = 26;
   let gridOriginX = 0, gridOriginY = 0, trayTop = 0;
@@ -371,10 +413,76 @@
   let score = 0; 
   let previousState = null;
   let particles = [];
+  let flyingParticles = []; // مصفوفة جزيئات الطيران
   let nextPieceId = 0;
   let animationFrameId;
-
   let activeBooster = null; 
+
+  let currentBag = [];
+
+  function setLevelTargetIcon() {
+      // اختيار أيقونة هدف موحدة للمستوى بناءً على السمة الحالية
+      let fallbackIndex = (currentLevel - 1) % 18;
+      activeTargetIcon = getIconForTheme(fallbackIndex) || "💎";
+      updateScoreDisplay();
+  }
+
+  function fillBag() {
+      currentBag = [];
+      let baseBag = Array.from({length: SHAPE_TEMPLATES.length}, (_, i) => i);
+      if (currentLevel <= 5) { baseBag.push(0, 0, 1, 2, 7); } 
+      else if (currentLevel >= 16) {
+          baseBag = baseBag.filter(idx => idx !== 0);
+          baseBag.push(8, 5, 6, 14, 15, 16, 17);
+      }
+      currentBag = baseBag.sort(() => Math.random() - 0.5);
+  }
+
+  function getOccupiedCount() {
+      let count = 0;
+      for (let r=0; r<gridRows; r++) for (let c=0; c<gridCols; c++) if (occupied[r][c] !== null) count++;
+      return count; 
+  }
+
+  function canFit(templateIdx) {
+      let t = SHAPE_TEMPLATES[templateIdx];
+      let tempPiece = { shape: t.shape, rows: t.shape.length, cols: t.shape[0].length };
+      for (let r = 0; r < gridRows; r++) {
+          for (let c = 0; c < gridCols; c++) {
+              if (isValidPlacement(tempPiece, r, c)) return true;
+          }
+      }
+      return false;
+  }
+
+  function generateTrayPieces() {
+      pieces = [];
+      let trayIndices = [];
+
+      for (let i = 0; i < 3; i++) {
+          if (currentBag.length === 0) fillBag();
+          trayIndices.push(currentBag.pop());
+      }
+
+      let fits = trayIndices.some(idx => canFit(idx));
+      if (!fits) {
+          let occupancyPercentage = (getOccupiedCount() / 64) * 100;
+          let fallbackIndices = [];
+          if (currentLevel <= 5) fallbackIndices = [0, 1, 2]; 
+          else if (currentLevel <= 15) { if (occupancyPercentage < 85) fallbackIndices = [0, 1, 2, 3, 4, 7]; } 
+          else { if (occupancyPercentage < 75) fallbackIndices = [1, 2, 3, 4]; }
+          for (let fbIdx of fallbackIndices) { if (canFit(fbIdx)) { trayIndices[0] = fbIdx; break; } }
+      }
+
+      for(let i=0; i<3; i++) {
+          let idx = trayIndices[i]; let t = SHAPE_TEMPLATES[idx];
+          pieces.push({
+              id: nextPieceId++, shape: t.shape, rows: t.shape.length, cols: t.shape[0].length,
+              color: t.color, templateIndex: idx, placed: false, x: 0, y: 0, trayX: 0, trayY: 0, animSize: 0
+          });
+      }
+      layoutTrayPositions(); checkGameOver();
+  }
 
   savedLevelSpan.textContent = currentLevel;
   topScoreLabel.textContent = `${topScore} 🪙`;
@@ -423,6 +531,19 @@
 
   function initGame(mode){
     gameMode = mode; score = 0; previousState = null; activeBooster = null;
+    currentBag = []; flyingParticles = [];
+    
+    if (mode === 'levels') {
+        levelProgress = 0;
+        levelTarget = 5 + (currentLevel * 3); // زيادة الهدف تدريجياً
+        setLevelTargetIcon();
+        goalBox.classList.remove('hidden');
+        topScoreBox.classList.add('hidden');
+    } else {
+        goalBox.classList.add('hidden');
+        topScoreBox.classList.remove('hidden');
+    }
+
     updateScoreDisplay(); updateButtonsState();
     occupied = Array.from({length:gridRows}, () => Array(gridCols).fill(null));
     particles = []; pieces = []; nextPieceId = 0;
@@ -431,62 +552,31 @@
     if(!animationFrameId) loop();
   }
 
-  function generateTrayPieces() {
-    let availableTemplates = SHAPE_TEMPLATES.map((t, idx) => ({t, idx})).filter(({t}) => {
-        if (currentLevel > 10) {
-            let blockCount = 0;
-            for (let r = 0; r < t.shape.length; r++) {
-                for (let c = 0; c < t.shape[r].length; c++) {
-                    blockCount += t.shape[r][c];
-                }
-            }
-            if (blockCount <= 2) return false;
-        }
-        return true;
-    });
-
-    for(let i=0; i<3; i++) {
-        let entry = availableTemplates[Math.floor(Math.random() * availableTemplates.length)];
-        let t = entry.t;
-        pieces.push({
-            id: nextPieceId++, shape: t.shape, rows: t.shape.length, cols: t.shape[0].length,
-            color: t.color, templateIndex: entry.idx, placed: false, x: 0, y: 0, trayX: 0, trayY: 0, animSize: 0
-        });
-    }
-    layoutTrayPositions(); checkGameOver();
-  }
-
   function updateScoreDisplay() {
+      scoreLabel.innerHTML = `${score} 🪙`;
       if(gameMode === 'levels') {
-          scoreLabel.innerHTML = `${score} / ${currentLevel * 100} 🪙`;
+          goalLabel.innerHTML = `${levelProgress} / ${levelTarget} ${activeTargetIcon}`;
       } else {
-          scoreLabel.innerHTML = `${score} 🪙`;
-      }
-      
-      if(score > topScore) {
-          topScore = score;
-          localStorage.setItem('blockCrushTopScore', topScore);
-          topScoreLabel.innerHTML = `${topScore} 🪙`;
+          if(score > topScore) {
+              topScore = score;
+              localStorage.setItem('blockCrushTopScore', topScore);
+              topScoreLabel.innerHTML = `${topScore} 🪙`;
+          }
       }
   }
 
   function updateButtonsState() {
       undoBtn.classList.toggle('disabled', (!previousState || previousState.score < 100));
-      
       topBuyBtn.classList.toggle('disabled', (score < 150));
       storeStatusLabel.style.color = (score >= 150) ? '#2ecc71' : '#fff3e0';
-      
       btnRotate.classList.toggle('disabled', score < 30);
       btnBomb.classList.toggle('disabled', score < 100 && activeBooster !== 'bomb');
       btnBomb.classList.toggle('booster-active', activeBooster === 'bomb');
   }
 
   function toggleBooster(type, cost) {
-      if (activeBooster === type) {
-          activeBooster = null;
-      } else if (score >= cost) {
-          activeBooster = type;
-      }
+      if (activeBooster === type) activeBooster = null;
+      else if (score >= cost) activeBooster = type;
       updateButtonsState();
   }
 
@@ -497,14 +587,8 @@
           score -= 30; playSound('buy');
           pieces.filter(p => !p.placed).forEach(p => {
               let newShape = Array.from({length: p.cols}, () => Array(p.rows).fill(0));
-              for(let r=0; r<p.rows; r++) {
-                  for(let c=0; c<p.cols; c++) {
-                      newShape[c][p.rows - 1 - r] = p.shape[r][c];
-                  }
-              }
-              p.shape = newShape;
-              p.rows = p.shape.length;
-              p.cols = p.shape[0].length;
+              for(let r=0; r<p.rows; r++) for(let c=0; c<p.cols; c++) newShape[c][p.rows - 1 - r] = p.shape[r][c];
+              p.shape = newShape; p.rows = p.shape.length; p.cols = p.shape[0].length;
           });
           layoutTrayPositions(); updateScoreDisplay(); updateButtonsState(); checkGameOver();
       }
@@ -550,6 +634,7 @@
     ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
   }
 
+  // رسم مجسم ثلاثي الأبعاد واحترافي
   function drawBlockCell(px, py, size, color, alpha = 1, icon = ""){
     const pad = 1.5; ctx.save(); ctx.globalAlpha = alpha;
     if (currentTheme === 'candy') {
@@ -560,13 +645,35 @@
         ctx.globalAlpha = 0.5; ctx.fillStyle = "#fff"; ctx.fill(); 
         ctx.globalAlpha = alpha; ctx.font = `${size*0.5}px Arial`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText("🍦", px+size/2, py+size/2);
     } else {
+        // الشكل الافتراضي المطور (تدرج و3D)
         roundRect(px+pad, py+pad, size-pad*2, size-pad*2, size*0.16);
-        const grad = ctx.createLinearGradient(px,py,px,py+size);
-        grad.addColorStop(0, color); grad.addColorStop(1, "#00000055");
-        ctx.fillStyle = color; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "#00000033"; ctx.stroke();
-        ctx.globalAlpha = alpha*0.35; roundRect(px+size*0.14, py+size*0.12, size*0.5, size*0.22, size*0.1); ctx.fillStyle = "#fff"; ctx.fill();
+        ctx.fillStyle = color; ctx.fill();
+        
+        // التدرج اللوني المجسم
+        const grad = ctx.createLinearGradient(px, py, px, py + size);
+        grad.addColorStop(0, "rgba(255,255,255,0.3)");
+        grad.addColorStop(0.5, "rgba(255,255,255,0)");
+        grad.addColorStop(1, "rgba(0,0,0,0.4)");
+        ctx.fillStyle = grad; ctx.fill();
+        
+        // الحواف الخارجية
+        ctx.lineWidth = 1.5; ctx.strokeStyle = "rgba(0,0,0,0.5)"; ctx.stroke();
+        
+        // إطار داخلي يعطي إيحاء بالارتفاع
+        ctx.globalAlpha = alpha * 0.4;
+        roundRect(px+pad+2, py+pad+2, size-pad*4, size-pad*4, size*0.1);
+        ctx.strokeStyle = "#ffffff"; ctx.stroke();
+
         if (icon) {
-            ctx.globalAlpha = alpha; ctx.font = `${size*0.6}px Arial`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(icon, px+size/2, py+size/2+size*0.05);
+            ctx.globalAlpha = alpha;
+            // إضافة ظل جميل تحت الأيقونة
+            ctx.shadowColor = 'rgba(0,0,0,0.6)';
+            ctx.shadowBlur = 4;
+            ctx.shadowOffsetY = 2;
+            ctx.font = `${size*0.55}px Arial`;
+            ctx.textAlign='center'; ctx.textBaseline='middle';
+            ctx.fillText(icon, px+size/2, py+size/2+size*0.05);
+            ctx.shadowColor = 'transparent'; // إعادة ضبط
         }
     }
     ctx.restore();
@@ -582,7 +689,12 @@
         roundRect(x+2, y+2, cellSize-4, cellSize-4, cellSize*0.14);
         ctx.fillStyle = occupied[r][c] ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.06)";
         ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = "rgba(255,255,255,0.1)"; ctx.stroke();
-        if (occupied[r][c]) drawBlockCell(x, y, cellSize, occupied[r][c].color, 1, getIconForTheme(occupied[r][c].templateIndex));
+        if (occupied[r][c]) {
+            let cellIcon = getIconForTheme(occupied[r][c].templateIndex);
+            // في وضع المستويات، تستبدل الأيقونات الأساسية بهدف المستوى إذا كانت تحتوي على أيقونة
+            let finalIcon = cellIcon ? (gameMode === 'levels' ? activeTargetIcon : cellIcon) : "";
+            drawBlockCell(x, y, cellSize, occupied[r][c].color, 1, finalIcon);
+        }
       }
     }
   }
@@ -604,14 +716,32 @@
   }
 
   function drawPiece(p, alpha, s = cellSize){
-    const icon = getIconForTheme(p.templateIndex);
-    for(let r=0;r<p.rows;r++) for(let c=0;c<p.cols;c++) if(p.shape[r][c]===1) drawBlockCell(p.x+c*s, p.y+r*s, s, p.color, alpha, icon);
+    let pieceIcon = getIconForTheme(p.templateIndex);
+    let finalIcon = pieceIcon ? (gameMode === 'levels' ? activeTargetIcon : pieceIcon) : "";
+    for(let r=0;r<p.rows;r++) for(let c=0;c<p.cols;c++) if(p.shape[r][c]===1) drawBlockCell(p.x+c*s, p.y+r*s, s, p.color, alpha, finalIcon);
   }
 
   function spawnCoins(x, y) {
       for(let i=0; i<5; i++) particles.push({x: x+cellSize/2, y: y+cellSize/2, vx: (Math.random()-0.5)*8, vy: (Math.random()-1)*8-2, life: 1.0, type: 'coin'});
   }
+
+  // إضافة الجزيئات الطائرة بانحناء سلس (Bezier)
+  function spawnFlyingItem(x, y, icon) {
+      flyingParticles.push({
+          startX: x, startY: y,
+          x: x, y: y,
+          targetX: logicalWidth / 4, // تتجه نحو الجزء العلوي الأيسر حيث صندوق الهدف
+          targetY: -40, // تطير خارج اللوحة لأعلى لتصل للواجهة
+          icon: icon,
+          progress: 0,
+          speed: 0.02 + Math.random() * 0.015,
+          cpX: x + (Math.random() - 0.5) * 250, // نقطة التحكم لعمل قوس جميل
+          cpY: y - 100 - Math.random() * 100
+      });
+  }
+
   function updateAndDrawParticles() {
+      // الجزيئات العادية المتناثرة
       for (let i = particles.length - 1; i >= 0; i--) {
           let p = particles[i]; p.x += p.vx; p.y += p.vy; p.vy += 0.4; p.life -= 0.03;
           if (p.life <= 0) particles.splice(i, 1);
@@ -619,6 +749,39 @@
               ctx.save(); ctx.globalAlpha = p.life; ctx.fillStyle = "#FFD700";
               ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI*2); ctx.fill();
               ctx.strokeStyle = "#B8860B"; ctx.lineWidth=2; ctx.stroke(); ctx.restore();
+          }
+      }
+
+      // الجزيئات الطائرة نحو الهدف
+      for (let i = flyingParticles.length - 1; i >= 0; i--) {
+          let p = flyingParticles[i];
+          p.progress += p.speed;
+          
+          if (p.progress >= 1) {
+              // عند الوصول للهدف
+              flyingParticles.splice(i, 1);
+              if (gameMode === 'levels') {
+                  levelProgress++;
+                  playSound('pop'); 
+                  updateScoreDisplay();
+                  // تفعيل النبض للواجهة
+                  goalBox.classList.remove('pulse-anim');
+                  void goalBox.offsetWidth; // إجبار المتصفح على التحديث
+                  goalBox.classList.add('pulse-anim');
+                  checkLevelProgress(); // فحص الفوز بعد الاستلام
+              }
+          } else {
+              // دالة المنحنى (Quadratic Bezier Curve)
+              let t = p.progress;
+              p.x = Math.pow(1-t, 2) * p.startX + 2 * (1-t) * t * p.cpX + Math.pow(t, 2) * p.targetX;
+              p.y = Math.pow(1-t, 2) * p.startY + 2 * (1-t) * t * p.cpY + Math.pow(t, 2) * p.targetY;
+
+              ctx.save();
+              ctx.globalAlpha = 1 - Math.pow(t, 4); // اختفاء ناعم جداً بالنهاية
+              ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 3;
+              ctx.font = "28px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+              ctx.fillText(p.icon, p.x, p.y);
+              ctx.restore();
           }
       }
   }
@@ -683,22 +846,31 @@
 
       function clearCell(r, c) {
           const px = gridOriginX+c*cellSize, py = gridOriginY+r*cellSize;
-          spawnCoins(px, py);
-          occupied[r][c] = null; score += 10;
+          const cell = occupied[r][c];
+          let cellIcon = getIconForTheme(cell.templateIndex);
+          
+          if (gameMode === 'levels' && cellIcon) {
+              spawnFlyingItem(px + cellSize/2, py + cellSize/2, activeTargetIcon);
+          } else {
+              spawnCoins(px, py);
+          }
+          score += 10;
+          occupied[r][c] = null; 
       }
       rowsToClear.forEach(r => { for(let c=0; c<gridCols; c++) clearCell(r, c); });
       colsToClear.forEach(c => { for(let r=0; r<gridRows; r++) if(occupied[r][c]) clearCell(r, c); });
 
       if(hasCrush) {
-          updateScoreDisplay(); updateButtonsState(); checkLevelProgress();
+          updateScoreDisplay(); updateButtonsState();
+          if (gameMode === 'classic') checkLevelProgress(); 
       }
   }
 
   function checkLevelProgress() {
-      if (gameMode === 'levels' && score >= currentLevel * 100) {
+      if (gameMode === 'levels' && levelProgress >= levelTarget) {
           playSound('win'); currentLevel++; localStorage.setItem('blockCrushLevel', currentLevel); savedLevelSpan.textContent = currentLevel;
           document.getElementById('modalTitle').textContent = "🎉 مستوى مكتمل!";
-          document.getElementById('modalText').textContent = `لقد جمعت النقود المطلوبة وانتقلت للمستوى ${currentLevel}.`;
+          document.getElementById('modalText').textContent = `لقد جمعت الأهداف المطلوبة بنجاح وانتقلت للمستوى ${currentLevel}.`;
           document.getElementById('modalNextBtn').style.display = 'block'; document.getElementById('gameOverModal').classList.remove('hidden');
       }
   }
@@ -709,7 +881,7 @@
       });
       if(!canPlaceAny) {
           document.getElementById('modalTitle').textContent = "انتهت اللعبة";
-          document.getElementById('modalText').textContent = `لا توجد حركات ممكنة. لقد جمعت ${score} 🪙!`;
+          document.getElementById('modalText').textContent = `لا توجد حركات ممكنة. رصيدك ${score} 🪙`;
           document.getElementById('modalNextBtn').style.display = 'none'; document.getElementById('gameOverModal').classList.remove('hidden');
       }
   }
