@@ -43,25 +43,26 @@
   }
   .stats-row {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: space-between;
     width: 100%;
-    gap: 10px;
+    gap: 8px;
   }
-  .stats-row .stat-box { min-width: 120px; }
   .stat-box {
     flex: 1;
     text-align: center;
     background:var(--panel);
-    padding:6px 10px;
+    padding:6px 4px;
     border-radius:12px;
     border:2px solid var(--accent-dark);
     box-shadow:inset 0 2px 4px rgba(0,0,0,.4);
-    font-size:clamp(12px,3.2vw,15px);
+    font-size:clamp(11px,3vw,14px);
     font-weight: bold;
     color: #ffd700;
   }
   .stat-box span { display: block; font-size: 0.8em; color: #fff3e0; margin-bottom: 4px;}
+  .clickable-stat { cursor: pointer; transition: all 0.2s; background: linear-gradient(180deg, var(--wood-mid), var(--panel)); }
+  .clickable-stat:active { transform: translateY(2px); }
 
   #canvasWrap{
     width:100%;
@@ -82,19 +83,19 @@
     background:#2f2015;
     touch-action:none;
   }
-  .controls-group { width: 100%; max-width: 640px; margin-top: 10px; }
-  .controls-title { font-size: 14px; text-align: center; margin-bottom: 5px; color: #f4c542; font-weight: bold;}
-  .controls{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+  .controls-group { width: 100%; max-width: 640px; margin-top: 15px; }
+  .controls{ display:flex; gap:10px; flex-wrap:nowrap; justify-content:center; }
   
   button.woodBtn{
+    flex: 1;
     font-family:inherit;
-    font-size:14px;
+    font-size:15px;
     font-weight:bold;
     color:#fff3e0;
     background:linear-gradient(180deg,var(--wood-light),var(--wood-mid));
     border:2px solid var(--panel);
     border-radius:10px;
-    padding:8px 14px;
+    padding:12px 10px;
     cursor:pointer;
     box-shadow:0 4px 0 var(--panel), 0 6px 10px rgba(0,0,0,.4);
     transition:all .1s ease;
@@ -169,7 +170,6 @@
 <div id="mainMenu" class="overlay">
   <div class="modalBox">
     <h2>🧩 Block Crush</h2>
-    <p>العملة: كل 100 🪙 = 1 💎</p>
     <div class="menu-btns">
       <button class="woodBtn gold" id="btnModeLevels">🌟 وضع المستويات (<span id="savedLevelSpan">1</span>)</button>
       <button class="woodBtn" id="btnModeClassic">♾️ الوضع الكلاسيكي</button>
@@ -189,7 +189,7 @@
         <option value="icecream">🍦 آيس كريم (باستيل)</option>
         <option value="emoji">🎉 إيموجي متنوع</option>
         <option value="hearts">❤️🌸 قلوب وزهور</option>
-        <option value="animals">🐾 حيوانات فقط (بدون قلوب)</option>
+        <option value="animals">🐾 حيوانات فقط</option>
       </select>
     </div>
     <div class="setting-group">
@@ -232,10 +232,10 @@
 <div id="app">
   <header>
     <div class="stats-row">
-      <div class="stat-box"><span>أعلى رصيد 🏆</span><div id="topScoreLabel">0 🪙</div></div>
-      <div class="stat-box"><span>المحفظة 💎/🪙</span><div id="scoreLabel">0 🪙</div></div>
-      <div class="stat-box"><span>حصالة القلوب 🐷</span><div id="heartsBankLabel">0 ❤️</div></div>
-      <div class="stat-box" id="levelBox"><span>الهدف 🎯</span><div id="targetLabel">-</div></div>
+      <div class="stat-box"><span>أعلى نقطة 🏆</span><div id="topScoreLabel">0 🪙</div></div>
+      <div class="stat-box"><span>النقود 🪙</span><div id="scoreLabel">0 🪙</div></div>
+      <div class="stat-box clickable-stat" id="topBuyBtn"><span>المتجر 🛒</span><div id="storeStatusLabel">150 🪙</div></div>
+      <div class="stat-box clickable-stat" id="topMenuBtn"><span>القائمة ☰</span><div>الرئيسية</div></div>
     </div>
   </header>
 
@@ -244,19 +244,10 @@
   </div>
 
   <div class="controls-group">
-    <div class="controls-title">✨ أدوات المساعدة (Boosters) ✨</div>
     <div class="controls">
       <button class="woodBtn gold disabled" id="btnRotate">🔄 تدوير (30)</button>
       <button class="woodBtn gold disabled" id="btnBomb">💣 قنبلة (100)</button>
-    </div>
-  </div>
-
-  <div class="controls-group">
-    <div class="controls">
-      <button class="woodBtn disabled" id="buyBtn">🛒 متجر (150)</button>
-      <button class="woodBtn disabled" id="undoBtn">↩ تراجع (1💎)</button>
-      <button class="woodBtn" id="resetBtn">↺ إعادة</button>
-      <button class="woodBtn" id="menuBtn">☰ القائمة</button>
+      <button class="woodBtn disabled" id="undoBtn">↩ تراجع (100)</button>
     </div>
   </div>
 </div>
@@ -329,14 +320,12 @@
     { shape: [[1,1],[1,0]], color: "#1abc9c", icon: "🐢" },
     { shape: [[1,1],[0,1]], color: "#1abc9c", icon: "🐢" },
     { shape: [[1,0,0],[1,0,0],[1,1,1]], color: "#e84393", icon: "🐷" },
-    // الأشكال الجديدة L (مكونة من 4 بلوكات)
-    { shape: [[1,0],[1,0],[1,1]], color: "#34495e", icon: "⚓" }, // L1
-    { shape: [[0,1],[0,1],[1,1]], color: "#34495e", icon: "⚓" }, // J1
-    { shape: [[1,1,1],[1,0,0]], color: "#34495e", icon: "⚓" }, // L2
-    { shape: [[1,1,1],[0,0,1]], color: "#34495e", icon: "⚓" }  // J2
+    { shape: [[1,0],[1,0],[1,1]], color: "#34495e", icon: "⚓" }, 
+    { shape: [[0,1],[0,1],[1,1]], color: "#34495e", icon: "⚓" }, 
+    { shape: [[1,1,1],[1,0,0]], color: "#34495e", icon: "⚓" }, 
+    { shape: [[1,1,1],[0,0,1]], color: "#34495e", icon: "⚓" }  
   ];
 
-  // مجموعات الأيقونات لكل قالب شكل، حسب الوضع المختار (نفس ترتيب SHAPE_TEMPLATES)
   const ANIMALS_ICONS = ["🐭","🐰","🐰","🐸","🐸","🦄","🦄","🐼","🦊","🐢","🐢","🐢","🐢","🐷","🐨","🐨","🐨","🐨"];
   const HEARTS_FLOWERS_ICONS = ["🌸","❤️","❤️","🌷","🌷","💐","💐","💖","🌹","💕","💕","💕","💕","🌺","💗","💗","💗","💗"];
   const EMOJI_ICONS = ["💎","⚡","⚡","🔥","🔥","🌈","🌈","⭐","🎯","🍄","🍄","🍄","🍄","🎪","🚀","🚀","🚀","🚀"];
@@ -348,9 +337,6 @@
     if (currentTheme === 'emoji') return EMOJI_ICONS[idx] || "";
     return "";
   }
-  function isHeartTemplate(idx) {
-    return currentTheme === 'hearts' && HEARTS_FLOWERS_ICONS[idx] === '❤️';
-  }
 
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
@@ -359,10 +345,11 @@
   // UI Elements
   const scoreLabel = document.getElementById('scoreLabel');
   const topScoreLabel = document.getElementById('topScoreLabel');
-  const targetLabel = document.getElementById('targetLabel');
   const savedLevelSpan = document.getElementById('savedLevelSpan');
   const undoBtn = document.getElementById('undoBtn');
-  const buyBtn = document.getElementById('buyBtn');
+  const topBuyBtn = document.getElementById('topBuyBtn');
+  const storeStatusLabel = document.getElementById('storeStatusLabel');
+  const topMenuBtn = document.getElementById('topMenuBtn');
   const btnRotate = document.getElementById('btnRotate');
   const btnBomb = document.getElementById('btnBomb');
 
@@ -387,23 +374,10 @@
   let nextPieceId = 0;
   let animationFrameId;
 
-  // حصالة القلوب: تتجمّع فيها القلوب الناتجة عن تكسير بلوكات القلوب، وتُحفظ بشكل دائم
-  const heartsBankLabel = document.getElementById('heartsBankLabel');
-  let heartsBank = parseInt(localStorage.getItem('blockCrushHeartsBank')) || 0;
-  function updateHeartsBankDisplay() {
-      heartsBankLabel.textContent = heartsBank + " ❤️";
-  }
-  updateHeartsBankDisplay();
-  
-  let activeBooster = null; // 'bomb'
+  let activeBooster = null; 
 
-  function formatCurrency(amount) {
-      let diamonds = Math.floor(amount / 100);
-      let gold = amount % 100;
-      return diamonds > 0 ? `${diamonds} 💎 | ${gold} 🪙` : `${gold} 🪙`;
-  }
   savedLevelSpan.textContent = currentLevel;
-  topScoreLabel.textContent = formatCurrency(topScore);
+  topScoreLabel.textContent = `${topScore} 🪙`;
 
   function initStoreUI() {
       const storeGrid = document.getElementById('storeGrid');
@@ -449,7 +423,6 @@
 
   function initGame(mode){
     gameMode = mode; score = 0; previousState = null; activeBooster = null;
-    document.getElementById('levelBox').style.display = (mode === 'levels') ? 'block' : 'none';
     updateScoreDisplay(); updateButtonsState();
     occupied = Array.from({length:gridRows}, () => Array(gridCols).fill(null));
     particles = []; pieces = []; nextPieceId = 0;
@@ -459,17 +432,14 @@
   }
 
   function generateTrayPieces() {
-    // تصفية الأشكال بناءً على مستوى الصعوبة
     let availableTemplates = SHAPE_TEMPLATES.map((t, idx) => ({t, idx})).filter(({t}) => {
         if (currentLevel > 10) {
-            // حساب عدد البلوكات (المربعات الممتلئة) في الشكل
             let blockCount = 0;
             for (let r = 0; r < t.shape.length; r++) {
                 for (let c = 0; c < t.shape[r].length; c++) {
                     blockCount += t.shape[r][c];
                 }
             }
-            // إذا كان الشكل يتكون من بلوكة واحدة أو اثنين، لا تعرضه بعد المستوى 10
             if (blockCount <= 2) return false;
         }
         return true;
@@ -487,18 +457,25 @@
   }
 
   function updateScoreDisplay() {
-      scoreLabel.innerHTML = formatCurrency(score);
+      if(gameMode === 'levels') {
+          scoreLabel.innerHTML = `${score} / ${currentLevel * 100} 🪙`;
+      } else {
+          scoreLabel.innerHTML = `${score} 🪙`;
+      }
+      
       if(score > topScore) {
           topScore = score;
           localStorage.setItem('blockCrushTopScore', topScore);
-          topScoreLabel.innerHTML = formatCurrency(topScore);
+          topScoreLabel.innerHTML = `${topScore} 🪙`;
       }
-      if(gameMode === 'levels') targetLabel.innerHTML = formatCurrency(currentLevel * 100);
   }
 
   function updateButtonsState() {
       undoBtn.classList.toggle('disabled', (!previousState || previousState.score < 100));
-      buyBtn.classList.toggle('disabled', (score < 150));
+      
+      topBuyBtn.classList.toggle('disabled', (score < 150));
+      storeStatusLabel.style.color = (score >= 150) ? '#2ecc71' : '#fff3e0';
+      
       btnRotate.classList.toggle('disabled', score < 30);
       btnBomb.classList.toggle('disabled', score < 100 && activeBooster !== 'bomb');
       btnBomb.classList.toggle('booster-active', activeBooster === 'bomb');
@@ -634,18 +611,11 @@
   function spawnCoins(x, y) {
       for(let i=0; i<5; i++) particles.push({x: x+cellSize/2, y: y+cellSize/2, vx: (Math.random()-0.5)*8, vy: (Math.random()-1)*8-2, life: 1.0, type: 'coin'});
   }
-  function spawnHearts(x, y) {
-      for(let i=0; i<5; i++) particles.push({x: x+cellSize/2, y: y+cellSize/2, vx: (Math.random()-0.5)*8, vy: (Math.random()-1)*8-2, life: 1.0, type: 'heart'});
-  }
   function updateAndDrawParticles() {
       for (let i = particles.length - 1; i >= 0; i--) {
           let p = particles[i]; p.x += p.vx; p.y += p.vy; p.vy += 0.4; p.life -= 0.03;
           if (p.life <= 0) particles.splice(i, 1);
-          else if (p.type === 'heart') {
-              ctx.save(); ctx.globalAlpha = p.life; ctx.font = "18px Arial";
-              ctx.textAlign = "center"; ctx.textBaseline = "middle";
-              ctx.fillText("❤️", p.x, p.y); ctx.restore();
-          } else {
+          else {
               ctx.save(); ctx.globalAlpha = p.life; ctx.fillStyle = "#FFD700";
               ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI*2); ctx.fill();
               ctx.strokeStyle = "#B8860B"; ctx.lineWidth=2; ctx.stroke(); ctx.restore();
@@ -712,22 +682,14 @@
       if(hasCrush) playSound('crush');
 
       function clearCell(r, c) {
-          const cell = occupied[r][c];
           const px = gridOriginX+c*cellSize, py = gridOriginY+r*cellSize;
-          if (cell && isHeartTemplate(cell.templateIndex)) {
-              spawnHearts(px, py);
-              heartsBank++;
-          } else {
-              spawnCoins(px, py);
-          }
+          spawnCoins(px, py);
           occupied[r][c] = null; score += 10;
       }
       rowsToClear.forEach(r => { for(let c=0; c<gridCols; c++) clearCell(r, c); });
       colsToClear.forEach(c => { for(let r=0; r<gridRows; r++) if(occupied[r][c]) clearCell(r, c); });
 
       if(hasCrush) {
-          localStorage.setItem('blockCrushHeartsBank', heartsBank);
-          updateHeartsBankDisplay();
           updateScoreDisplay(); updateButtonsState(); checkLevelProgress();
       }
   }
@@ -736,7 +698,7 @@
       if (gameMode === 'levels' && score >= currentLevel * 100) {
           playSound('win'); currentLevel++; localStorage.setItem('blockCrushLevel', currentLevel); savedLevelSpan.textContent = currentLevel;
           document.getElementById('modalTitle').textContent = "🎉 مستوى مكتمل!";
-          document.getElementById('modalText').textContent = `لقد جمعت الألماس المطلوب وانتقلت للمستوى ${currentLevel}.`;
+          document.getElementById('modalText').textContent = `لقد جمعت النقود المطلوبة وانتقلت للمستوى ${currentLevel}.`;
           document.getElementById('modalNextBtn').style.display = 'block'; document.getElementById('gameOverModal').classList.remove('hidden');
       }
   }
@@ -747,7 +709,7 @@
       });
       if(!canPlaceAny) {
           document.getElementById('modalTitle').textContent = "انتهت اللعبة";
-          document.getElementById('modalText').textContent = `لا توجد حركات ممكنة. لقد جمعت ${formatCurrency(score)}!`;
+          document.getElementById('modalText').textContent = `لا توجد حركات ممكنة. لقد جمعت ${score} 🪙!`;
           document.getElementById('modalNextBtn').style.display = 'none'; document.getElementById('gameOverModal').classList.remove('hidden');
       }
   }
@@ -837,13 +799,14 @@
 
   document.getElementById('btnModeLevels').addEventListener('click', () => initGame('levels'));
   document.getElementById('btnModeClassic').addEventListener('click', () => initGame('classic'));
-  document.getElementById('resetBtn').addEventListener('click', () => initGame(gameMode));
   document.getElementById('undoBtn').addEventListener('click', undoMove);
-  document.getElementById('menuBtn').addEventListener('click', () => document.getElementById('mainMenu').classList.remove('hidden'));
+  topMenuBtn.addEventListener('click', () => document.getElementById('mainMenu').classList.remove('hidden'));
   document.getElementById('btnSettings').addEventListener('click', () => document.getElementById('settingsModal').classList.remove('hidden'));
   document.getElementById('closeSettingsBtn').addEventListener('click', () => document.getElementById('settingsModal').classList.add('hidden'));
-  buyBtn.addEventListener('click', () => { if (score >= 150) document.getElementById('storeModal').classList.remove('hidden'); });
+  
+  topBuyBtn.addEventListener('click', () => { if (score >= 150) document.getElementById('storeModal').classList.remove('hidden'); });
   document.getElementById('closeStoreBtn').addEventListener('click', () => document.getElementById('storeModal').classList.add('hidden'));
+  
   document.getElementById('modalReplayBtn').addEventListener('click', () => initGame(gameMode));
   document.getElementById('modalNextBtn').addEventListener('click', () => initGame('levels'));
   document.getElementById('modalMenuBtn').addEventListener('click', () => { document.getElementById('gameOverModal').classList.add('hidden'); document.getElementById('mainMenu').classList.remove('hidden'); });
